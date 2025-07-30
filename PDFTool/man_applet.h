@@ -1,10 +1,28 @@
 #ifndef MAN_APPLET_H
 #define MAN_APPLET_H
 
-class ManApplet
+#include <QObject>
+#include <QMessageBox>
+
+class MainWindow;
+
+class ManApplet : public QObject
 {
+    Q_OBJECT
+
 public:
-    ManApplet();
+    ManApplet( QObject *parent = nullptr );
+
+    void start();
+
+    MainWindow* mainWindow() { return main_win_; };
+
+private:
+    Q_DISABLE_COPY(ManApplet)
+
+    MainWindow* main_win_;
 };
+
+extern ManApplet *manApplet;
 
 #endif // MAN_APPLET_H

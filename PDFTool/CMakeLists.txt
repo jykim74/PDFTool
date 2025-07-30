@@ -50,7 +50,7 @@ endif()
 
 target_link_directories(PDFTool PRIVATE
     "C:/msys64/mingw64/lib"
-    ../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
+    ../../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
 )
 target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets PKILib qpdf)
 

@@ -2,10 +2,19 @@
 
 #include <QApplication>
 
+#include "man_applet.h"
+
 int main(int argc, char *argv[])
 {
-    QApplication a(argc, argv);
-    MainWindow w;
-    w.show();
-    return a.exec();
+    QApplication app(argc, argv);
+
+    QCoreApplication::setOrganizationName( "JS Inc" );
+    QCoreApplication::setOrganizationDomain( "jssoft.com" );
+    QCoreApplication::setApplicationName( "PDFTool" );
+
+    ManApplet mApplet;
+    manApplet = &mApplet;
+    manApplet->start();
+
+    return app.exec();
 }

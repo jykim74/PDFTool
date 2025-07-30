@@ -1,19 +1,17 @@
 #include "mainwindow.h"
-#include "./ui_mainwindow.h"
 #include "qpdf/qpdf-c.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
+    setupUi(this);
 
-    test();
+//    test();
 }
 
 MainWindow::~MainWindow()
 {
-    delete ui;
+
 }
 
 static char const* whoami = 0;
