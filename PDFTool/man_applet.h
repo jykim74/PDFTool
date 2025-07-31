@@ -18,6 +18,12 @@ public:
 
     MainWindow* mainWindow() { return main_win_; };
 
+    void log( const QString strLog );
+    void elog( const QString strLog );
+    void wlog( const QString strLog );
+    void dlog( const QString strLog );
+    void write( const QString strLog );
+
     void messageBox(const QString& msg, QWidget *parent);
     void warningBox(const QString& msg, QWidget *parent);
     bool yesOrNoBox(const QString& msg, QWidget *parent, bool default_val=true);

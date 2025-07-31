@@ -20,7 +20,7 @@ num_pages(qpdf_data qc, int* npages)
 
 static char const* whoami = 0;
 
-int JS_PDF_extend_c( const char *pPDFPath )
+int JS_PDF_extend_c( const char *pPDFPath,  int *pnPages  )
 {
     const char* infile = NULL;
     qpdf_data qpdf = qpdf_init();
@@ -34,6 +34,7 @@ int JS_PDF_extend_c( const char *pPDFPath )
         int npages;
         if ((num_pages(qpdf, &npages) & QPDF_ERRORS) == 0) {
             printf("num pages = %d\n", npages);
+            *pnPages = npages;
         }
     }
     if (qpdf_more_warnings(qpdf)) {

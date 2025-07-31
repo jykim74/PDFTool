@@ -19,7 +19,15 @@ public:
     ~MainWindow();
     void showWindow();
 
+    void log( const QString strLog );
+    void elog( const QString strLog );
+    void wlog( const QString strLog );
+    void dlog( const QString strLog );
+    void write( const QString strLog, QColor cr = QColor(0x00, 0x00, 0x00) );
+
 private slots:
+    void clickFindSrcPath();
+    void clickFindDstPath();
     void clickExtendC();
 
 private:

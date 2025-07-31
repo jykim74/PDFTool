@@ -79,6 +79,10 @@ static const QString _getFileExt( int nType )
     {
         strExt = "pem";
     }
+    else if( nType == JS_FILE_TYPE_PDF )
+    {
+        strExt = "pdf";
+    }
     else
     {
         strExt = "pem";
@@ -166,6 +170,11 @@ static const QString _getFileFilter( int nType, QString& strFileType )
         strFileType = QObject::tr("DH Parameter Files");
         strFilter = QString( "%1 (*.pem *.der)" ).arg( strFileType );
     }
+    else if( nType == JS_FILE_TYPE_PDF )
+    {
+        strFileType = QObject::tr("PDF Files");
+        strFilter = QString( "%1 (*.pdf)" ).arg( strFileType );
+    }
     else if( nType == JS_FILE_TYPE_PRIKEY_PKCS8_PFX )
     {
         strFileType = QObject::tr("PrivateKey Files");
@@ -201,6 +210,31 @@ void ManApplet::start()
 QString ManApplet::getBrand()
 {
     return QString::fromUtf8( "PDFTool" );
+}
+
+void ManApplet::log( const QString strLog )
+{
+    main_win_->log( strLog );
+}
+
+void ManApplet::elog( const QString strLog )
+{
+    main_win_->elog( strLog );
+}
+
+void ManApplet::wlog( const QString strLog )
+{
+    main_win_->wlog( strLog );
+}
+
+void ManApplet::dlog( const QString strLog )
+{
+    main_win_->dlog( strLog );
+}
+
+void ManApplet::write( const QString strLog )
+{
+    main_win_->write( strLog );
 }
 
 void ManApplet::warningBox(const QString& msg, QWidget *parent)
