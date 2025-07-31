@@ -57,6 +57,15 @@
          <attribute name="label">
           <string>Page 1</string>
          </attribute>
+         <layout class="QVBoxLayout" name="verticalLayout_2">
+          <item>
+           <widget class="QPushButton" name="mExtendCBtn">
+            <property name="text">
+             <string>ExtendC</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
         <widget class="QWidget" name="page_2">
          <property name="geometry">

@@ -29,6 +29,10 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         MANUAL_FINALIZATION
         ${PROJECT_SOURCES}
         man_applet.h man_applet.cpp
+        JS_PDF.h
+        JS_PDF.cpp
+        common.h
+        common.cpp
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET PDFTool APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR

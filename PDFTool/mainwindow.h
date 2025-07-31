@@ -17,8 +17,10 @@ class MainWindow : public QMainWindow, public Ui::MainWindow
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
+    void showWindow();
 
-    int test();
+private slots:
+    void clickExtendC();
 
 private:
 

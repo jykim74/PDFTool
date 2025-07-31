@@ -1,12 +1,14 @@
 #include "mainwindow.h"
 #include "qpdf/qpdf-c.h"
+#include "JS_PDF.h"
+#include "man_applet.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setupUi(this);
 
-//    test();
+    connect( mExtendCBtn, SIGNAL(clicked()), this, SLOT(clickExtendC()));
 }
 
 MainWindow::~MainWindow()
@@ -14,73 +16,23 @@ MainWindow::~MainWindow()
 
 }
 
-static char const* whoami = 0;
-
-int
-numPages(std::shared_ptr<QPDF> qpdf)
+void MainWindow::showWindow()
 {
-    return qpdf->getRoot().getKey("/Pages").getKey("/Count").getIntValueAsInt();
+    showNormal();
+    show();
+    raise();
+    activateWindow();
 }
 
-
-// Now we define the glue that makes our function callable using the C API.
-
-// This is the C++ implementation of the C function.
-QPDF_ERROR_CODE
-num_pages(qpdf_data qc, int* npages)
+void MainWindow::clickExtendC()
 {
-    // Call qpdf_c_wrap to convert any exception our function might through to a QPDF_ERROR_CODE
-    // and attach it to the qpdf_data object in the same way as other functions in the C API.
-    return qpdf_c_wrap(qc, [&qc, &npages]() { *npages = numPages(qpdf_c_get_qpdf(qc)); });
-}
+    QString strSrcPath = mSrcPathText->text();
 
-
-int aaa( int argc, char* argv[] )
-{
-    char* infile = NULL;
-    qpdf_data qpdf = qpdf_init();
-    int warnings = 0;
-    int errors = 0;
-    char* p = NULL;
-
-    if ((p = strrchr(argv[0], '/')) != NULL) {
-        whoami = p + 1;
-    } else if ((p = strrchr(argv[0], '\\')) != NULL) {
-        whoami = p + 1;
-    } else {
-        whoami = argv[0];
+    if( strSrcPath.length() < 1 )
+    {
+        mSrcPathText->setFocus();
+        return;
     }
 
-    infile = argv[1];
-
-    if ((qpdf_read(qpdf, infile, NULL) & QPDF_ERRORS) == 0) {
-        int npages;
-
-        if ((num_pages(qpdf, &npages) & QPDF_ERRORS) == 0) {
-            printf("num pages = %d\n", npages);
-        }
-    }
-    if (qpdf_more_warnings(qpdf)) {
-        warnings = 1;
-    }
-    if (qpdf_has_error(qpdf)) {
-        errors = 1;
-        printf("error: %s\n", qpdf_get_error_full_text(qpdf, qpdf_get_error(qpdf)));
-    }
-    qpdf_cleanup(&qpdf);
-    if (errors) {
-        return 2;
-    } else if (warnings) {
-        return 3;
-    }
-
-    return 0;
-}
-
-int MainWindow::test()
-{
-    char *argv[100];
-
-    aaa( 1, argv );
-    return 0;
+    JS_PDF_extend_c( strSrcPath.toLocal8Bit().toStdString().c_str() );
 }
