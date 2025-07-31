@@ -1,6 +1,12 @@
 #include "JS_PDF.h"
 #include "qpdf/qpdf-c.h"
 
+#include <qpdf/QIntC.hh>
+#include <qpdf/QPDF.hh>
+#include <qpdf/QPDFPageDocumentHelper.hh>
+#include <qpdf/QPDFWriter.hh>
+#include <qpdf/QUtil.hh>
+
 int
 numPages(std::shared_ptr<QPDF> qpdf)
 {
@@ -49,6 +55,32 @@ int JS_PDF_extend_c( const char *pPDFPath,  int *pnPages  )
         return 2;
     } else if (warnings) {
         return 3;
+    }
+
+    return 0;
+}
+
+static bool static_id = false;
+
+int JS_PDF_process( const char* whoami, char const* infile, std::string outprefix )
+{
+    QPDF inpdf;
+    inpdf.processFile(infile);
+    std::vector<QPDFPageObjectHelper> pages = QPDFPageDocumentHelper(inpdf).getAllPages();
+    int pageno_len = QIntC::to_int(std::to_string(pages.size()).length());
+    int pageno = 0;
+    for (auto& page: pages) {
+        std::string outfile = outprefix + QUtil::int_to_string(++pageno, pageno_len) + ".pdf";
+        QPDF outpdf;
+        outpdf.emptyPDF();
+        QPDFPageDocumentHelper(outpdf).addPage(page, false);
+        QPDFWriter outpdfw(outpdf, outfile.c_str());
+        if (static_id) {
+            // For the test suite, uncompress streams and use static IDs.
+            outpdfw.setStaticID(true); // for testing only
+            outpdfw.setStreamDataMode(qpdf_s_uncompress);
+        }
+        outpdfw.write();
     }
 
     return 0;
