@@ -85,3 +85,29 @@ int JS_PDF_process( const char* whoami, char const* infile, std::string outprefi
 
     return 0;
 }
+
+#if 0
+int test()
+{
+    // Step 1. QPDF로 PDF 로드
+    QPDF pdf;
+    pdf.processFile("unsigned.pdf");
+
+    // Step 2. 서명 대상 ByteRange 계산
+    auto signer = pdf.getSignatureHandler("Sig1");
+    std::vector<QPDFObjectHandle> byteRange = signer.getByteRange();
+
+    // Step 3. OpenSSL 서명 (EVP API)
+    EVP_PKEY *pkey = loadPrivateKey("key.pem");
+    EVP_MD_CTX *ctx = EVP_MD_CTX_new();
+    EVP_DigestSignInit(ctx, NULL, EVP_sha256(), NULL, pkey);
+    EVP_DigestSignUpdate(ctx, data, datalen);
+    EVP_DigestSignFinal(ctx, signature, &siglen);
+
+    // Step 4. CMS(PKCS#7) 래핑 후 /Contents 삽입
+    signer.setContents(cms_der_bytes);
+
+    // Step 5. 서명된 PDF 저장
+    pdf.write("signed.pdf");
+}
+#endif
