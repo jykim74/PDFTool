@@ -21,6 +21,7 @@ set(PROJECT_SOURCES
 
 include_directories(
   ../../PKILib
+  ../../lib/win64/qpdf
   "c:/msys64/mingw64/include"
 )
 
@@ -33,7 +34,6 @@ if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
         JS_PDF.cpp
         common.h
         common.cpp
-
     )
 # Define target properties for Android with Qt 6 as:
 #    set_property(TARGET PDFTool APPEND PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
@@ -54,9 +54,10 @@ else()
 endif()
 
 target_link_directories(PDFTool PRIVATE
-    "C:/msys64/mingw64/lib"
+    ../../lib/win64/qpdf/lib
     ../../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
 )
+
 target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets PKILib qpdf)
 
 # Qt for iOS sets MACOSX_BUNDLE_GUI_IDENTIFIER automatically since Qt 6.1.
