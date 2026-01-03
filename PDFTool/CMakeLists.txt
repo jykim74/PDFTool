@@ -19,11 +19,38 @@ set(PROJECT_SOURCES
         mainwindow.ui
 )
 
-include_directories(
-  ../../PKILib
-  ../../lib/win64/qpdf
-  "c:/msys64/mingw64/include"
-)
+if(WIN32)
+    include_directories(
+      ../../PKILib
+      ../../lib/win64/qpdf
+      "c:/msys64/mingw64/include"
+    )
+
+    target_link_directories(PDFTool PRIVATE
+        ../../lib/win64/qpdf/lib
+        ../../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
+    )
+
+elseif(APPLE)
+    include_directories(
+      ../../PKILib
+      /usr/local/include
+    )
+
+    if( CMAKE_BUILD_TYPE STREQUAL "Debug" )
+        target_link_directories( ${PROJECT_NAME} PRIVATE
+        ../../build-PKILib-Desktop_Qt_5_15_2_clang_64bit-Debug
+        ../../lib/mac/debug/${OPENSSL}/lib
+        /usr/local/lib )
+    elseif( CMAKE_BUILD_TYPE STREQUAL "Release" )
+        target_link_directories( ${PROJECT_NAME} PRIVATE
+        ../../build-PKILib-Desktop_Qt_5_15_2_clang_64bit-Release
+        ../../lib/mac/${OPENSSL}/lib
+        /usr/local/lib )
+    endif()
+elseif(LINUX)
+
+endif()
 
 if(${QT_VERSION_MAJOR} GREATER_EQUAL 6)
     qt_add_executable(PDFTool
@@ -53,10 +80,7 @@ else()
     endif()
 endif()
 
-target_link_directories(PDFTool PRIVATE
-    ../../lib/win64/qpdf/lib
-    ../../PKILib/build/Desktop_Qt_5_15_2_MinGW_64_bit-Debug
-)
+
 
 target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets PKILib qpdf)
 
