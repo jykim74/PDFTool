@@ -1,6 +1,7 @@
 #ifndef COMMON_H
 #define COMMON_H
 
+#include <QStringList>
 
 enum {
     JS_FILE_TYPE_CERT,
@@ -21,5 +22,8 @@ enum {
     JS_FILE_TYPE_DH_PARAM,
     JS_FILE_TYPE_PDF,
     JS_FILE_TYPE_ALL };
+
+const QString kEnvMiscGroup = "Misc";
+const QString kEnvTempGroup = "Temp";
 
 #endif // COMMON_H

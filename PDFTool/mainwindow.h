@@ -28,9 +28,23 @@ public:
 private slots:
     void clickFindSrcPath();
     void clickFindDstPath();
+    void clickFindSignedPath();
+    void clickFindCertPath();
+    void clickFindPriKeyPath();
     void clickExtendC();
+    void clickMakeSign();
+    void clickVerifySign();
 
 private:
+    void initialize();
 
+    void setEnvSrc( const QString strSrcPath );
+    const QString getEnvSrc();
+
+    void setEnvCert( const QString strSrcPath );
+    const QString getEnvCert();
+
+    void setEnvPriKey( const QString strSrcPath );
+    const QString getEnvPriKey();
 };
 #endif // MAINWINDOW_H

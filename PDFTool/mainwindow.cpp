@@ -1,10 +1,17 @@
 #include <QDateTime>
+#include <QFileInfo>
 
 #include "mainwindow.h"
 #include "qpdf/qpdf-c.h"
 #include "JS_PDF.h"
+#include <QSettings>
+
 #include "man_applet.h"
 #include "common.h"
+
+const QString kSrcPath = "SrcPath";
+const QString kCertPath = "CertPath";
+const QString kPriKeyPath = "PriKeyPath";
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -13,12 +20,94 @@ MainWindow::MainWindow(QWidget *parent)
 
     connect( mSrcFindBtn, SIGNAL(clicked()), this, SLOT(clickFindSrcPath()));
     connect( mDstFindBtn, SIGNAL(clicked()), this, SLOT(clickFindDstPath()));
+    connect( mSignedFindBtn, SIGNAL(clicked()), this, SLOT(clickFindSignedPath()));
+    connect( mCertFindBtn, SIGNAL(clicked()), this, SLOT(clickFindCertPath()));
+    connect( mPriKeyFindBtn, SIGNAL(clicked()), this, SLOT(clickFindPriKeyPath()));
+
     connect( mExtendCBtn, SIGNAL(clicked()), this, SLOT(clickExtendC()));
+    connect( mMakeSignBtn, SIGNAL(clicked()), this, SLOT(clickMakeSign()));
+    connect( mVerifySignBtn, SIGNAL(clicked()), this, SLOT(clickVerifySign()));
+
+    initialize();
+
+#if defined(Q_OS_MAC)
+    layout()->setSpacing(5);
+#endif
+
+    resize(minimumSizeHint().width(), minimumSizeHint().height());
 }
 
 MainWindow::~MainWindow()
 {
 
+}
+
+void MainWindow::initialize()
+{
+    QString strSrcPath = getEnvSrc();
+    mSrcPathText->setText( strSrcPath );
+    mCertPathText->setText( getEnvCert() );
+    mPriKeyPathText->setText( getEnvPriKey() );
+}
+
+void MainWindow::setEnvSrc( const QString strSrcPath )
+{
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    settings.setValue( kSrcPath, strSrcPath );
+    settings.endGroup();
+}
+
+const QString MainWindow::getEnvSrc()
+{
+    QString strPath;
+
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    strPath = settings.value( kSrcPath, "" ).toString();
+    settings.endGroup();
+
+    return strPath;
+}
+
+void MainWindow::setEnvCert( const QString strSrcPath )
+{
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    settings.setValue( kCertPath, strSrcPath );
+    settings.endGroup();
+}
+
+const QString MainWindow::getEnvCert()
+{
+    QString strPath;
+
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    strPath = settings.value( kCertPath, "cert.pem" ).toString();
+    settings.endGroup();
+
+    return strPath;
+}
+
+void MainWindow::setEnvPriKey( const QString strSrcPath )
+{
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    settings.setValue( kPriKeyPath, strSrcPath );
+    settings.endGroup();
+}
+
+const QString MainWindow::getEnvPriKey()
+{
+    QString strPath;
+
+    QSettings settings;
+    settings.beginGroup( kEnvTempGroup );
+    strPath = settings.value( kPriKeyPath, "prikey.pem" ).toString();
+    settings.endGroup();
+
+    return strPath;
 }
 
 void MainWindow::showWindow()
@@ -88,14 +177,58 @@ void MainWindow::clickFindSrcPath()
 {
     QString strPath = mSrcPathText->text();
     QString strFilename = manApplet->findFile( this, JS_FILE_TYPE_PDF, strPath );
-    mSrcPathText->setText( strFilename );
+
+    if( strFilename.length() > 0 )
+    {
+        mSrcPathText->setText( strFilename );
+        setEnvSrc( strFilename );
+    }
 }
 
 void MainWindow::clickFindDstPath()
 {
     QString strPath = mDstPathText->text();
     QString strFilename = manApplet->findFile( this, JS_FILE_TYPE_PDF, strPath );
-    mDstPathText->setText( strFilename );
+
+    if( strFilename.length() > 0 )
+    {
+        mDstPathText->setText( strFilename );
+    }
+}
+
+void MainWindow::clickFindSignedPath()
+{
+    QString strPath = mSignedPathText->text();
+    QString strFilename = manApplet->findFile( this, JS_FILE_TYPE_PDF, strPath );
+
+    if( strFilename.length() > 0 )
+    {
+        mSignedPathText->setText( strFilename );
+    }
+}
+
+void MainWindow::clickFindCertPath()
+{
+    QString strPath = mCertPathText->text();
+    QString strFilename = manApplet->findFile( this, JS_FILE_TYPE_CERT, strPath );
+
+    if( strFilename.length() > 0 )
+    {
+        mCertPathText->setText( strFilename );
+        setEnvCert( strFilename );
+    }
+}
+
+void MainWindow::clickFindPriKeyPath()
+{
+    QString strPath = mPriKeyPathText->text();
+    QString strFilename = manApplet->findFile( this, JS_FILE_TYPE_PRIKEY, strPath );
+
+    if( strFilename.length() > 0 )
+    {
+        mPriKeyPathText->setText( strFilename );
+        setEnvPriKey( strFilename );
+    }
 }
 
 void MainWindow::clickExtendC()
@@ -112,4 +245,78 @@ void MainWindow::clickExtendC()
 
     JS_PDF_extend_c( strSrcPath.toLocal8Bit().toStdString().c_str(), &nPages );
     log( QString( "Pages: %1" ).arg( nPages ));
+}
+
+void MainWindow::clickMakeSign()
+{
+    log( "Make Signature" );
+
+    QString strSrcPath = mSrcPathText->text();
+    QString strDstPath = mDstPathText->text();
+    QString strSignedPath = mSignedPathText->text();
+    QString strCertPath = mCertPathText->text();
+    QString strPriKeyPath = mPriKeyPathText->text();
+
+    if( strSrcPath.length() < 1 )
+    {
+        manApplet->warningBox( tr( "Find a source pdf" ), this );
+        mSrcPathText->setFocus();
+        return;
+    }
+
+    if( strCertPath.length() < 1 )
+    {
+        manApplet->warningBox( tr( "Find a certificate" ), this );
+        mCertPathText->setFocus();
+        return;
+    }
+
+    if( strPriKeyPath.length() < 1 )
+    {
+        manApplet->warningBox( tr( "Find a private key" ), this );
+        mPriKeyPathText->setFocus();
+        return;
+    }
+
+    if( strDstPath.length() < 1 )
+    {
+        QFileInfo fileInfo( strSrcPath );
+        strDstPath = QString( "%1/%2_dst.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
+        mDstPathText->setText( strDstPath );
+    }
+
+    if( strSignedPath.length() < 1 )
+    {
+        QFileInfo fileInfo( strSrcPath );
+        strSignedPath = QString( "%1/%2_signed.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
+        mSignedPathText->setText( strSignedPath );
+    }
+
+    create_unsigned_pdf( strSrcPath.toLocal8Bit().toStdString().c_str(), strDstPath.toLocal8Bit().toStdString().c_str() );
+    sign_pdf( strDstPath.toLocal8Bit().toStdString().c_str(),
+             strSignedPath.toLocal8Bit().toStdString().c_str(),
+             strCertPath.toLocal8Bit().toStdString().c_str(),
+             strPriKeyPath.toLocal8Bit().toStdString().c_str() );
+}
+
+void MainWindow::clickVerifySign()
+{
+    log( "Verify Signature" );
+
+    QString strSrcPath = mSrcPathText->text();
+    QString strDstPath = mDstPathText->text();
+
+    if( strSrcPath.length() < 1 )
+    {
+        manApplet->warningBox( tr( "Find a source pdf" ), this );
+        mSrcPathText->setFocus();
+        return;
+    }
+
+    if( strDstPath.length() < 1 )
+    {
+        QFileInfo fileInfo( strSrcPath );
+        strDstPath = QString( "%1/%2_dst.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
+        mDstPathText->setText( strDstPath );
+    }
 }

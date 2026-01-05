@@ -17,6 +17,8 @@ find_package(QT NAMES Qt5 Qt6 REQUIRED COMPONENTS Core)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Gui)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
+set( OPENSSL "openssl35" )
+
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
@@ -34,7 +36,7 @@ add_executable(PDFTool
 )
 
 target_link_options( PDFTool PRIVATE -mwindows -MD )
-target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets PKILib qpdf)
+target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets crypto PKILib qpdf)
 
 
 if(WIN32)
