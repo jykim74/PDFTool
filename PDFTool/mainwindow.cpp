@@ -27,6 +27,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mExtendCBtn, SIGNAL(clicked()), this, SLOT(clickExtendC()));
     connect( mMakeSignBtn, SIGNAL(clicked()), this, SLOT(clickMakeSign()));
     connect( mVerifySignBtn, SIGNAL(clicked()), this, SLOT(clickVerifySign()));
+    connect( mTestBtn, SIGNAL(clicked()), this, SLOT(clickTest()));
 
     initialize();
 
@@ -281,7 +282,7 @@ void MainWindow::clickMakeSign()
     if( strDstPath.length() < 1 )
     {
         QFileInfo fileInfo( strSrcPath );
-        strDstPath = QString( "%1/%2_dst.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
+        strDstPath = QString( "%1/%2_unsigned.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
         mDstPathText->setText( strDstPath );
     }
 
@@ -291,32 +292,32 @@ void MainWindow::clickMakeSign()
         strSignedPath = QString( "%1/%2_signed.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
         mSignedPathText->setText( strSignedPath );
     }
-
-    create_unsigned_pdf( strSrcPath.toLocal8Bit().toStdString().c_str(), strDstPath.toLocal8Bit().toStdString().c_str() );
-    sign_pdf( strDstPath.toLocal8Bit().toStdString().c_str(),
-             strSignedPath.toLocal8Bit().toStdString().c_str(),
-             strCertPath.toLocal8Bit().toStdString().c_str(),
-             strPriKeyPath.toLocal8Bit().toStdString().c_str() );
 }
 
 void MainWindow::clickVerifySign()
 {
     log( "Verify Signature" );
+}
 
-    QString strSrcPath = mSrcPathText->text();
-    QString strDstPath = mDstPathText->text();
+void MainWindow::clickTest()
+{
+    int ret = 0;
+    log( "Test" );
 
-    if( strSrcPath.length() < 1 )
-    {
-        manApplet->warningBox( tr( "Find a source pdf" ), this );
-        mSrcPathText->setFocus();
-        return;
-    }
+    ByteRangeInfo sInfo;
+    memset( &sInfo, 0x00, sizeof(ByteRangeInfo));
 
-    if( strDstPath.length() < 1 )
-    {
-        QFileInfo fileInfo( strSrcPath );
-        strDstPath = QString( "%1/%2_dst.pdf" ).arg( fileInfo.path() ).arg( fileInfo.baseName() );
-        mDstPathText->setText( strDstPath );
-    }
+    add_signature_field( INPUT_PDF, TEMP_PDF );
+    ret = calculate_byte_range( TEMP_PDF, &sInfo );
+    log( QString( "calculate_byte_range: %1").arg( ret ));
+
+    log( QString( "range[0]: %1 range[1]: %2 range[2]: %3 range[3]: %4")
+            .arg( sInfo.range[0] ).arg( sInfo.range[1] ).arg( sInfo.range[2] ).arg( sInfo.range[3] ) );
+
+    log( QString( "contents_start: %1 contents_end: %2").arg( sInfo.contents_start ).arg( sInfo.contents_end ));
+
+
+    ret = apply_byte_range( TEMP_PDF, &sInfo );
+    log( QString( "apply_byte_range: %1").arg( ret ));
+
 }

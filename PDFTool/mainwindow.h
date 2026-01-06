@@ -34,6 +34,7 @@ private slots:
     void clickExtendC();
     void clickMakeSign();
     void clickVerifySign();
+    void clickTest();
 
 private:
     void initialize();
