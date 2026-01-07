@@ -46,7 +46,10 @@ int verify_pkcs7_signature(
     long* byte_range,
     const unsigned char* pkcs7_der,
     size_t pkcs7_der_len,
+    const char* cert_path,
     const char* ca_bundle_path   // 시스템 CA or custom CA
     );
+
+int extract_pkcs7_der_from_pdf(const char* pdf_path,unsigned char** out_der,size_t* out_der_len);
 
 #endif // JS_PDF_H

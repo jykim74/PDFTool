@@ -133,11 +133,12 @@ void add_signature_field(const char* in_pdf, const char* out_pdf)
     sig_dict.replaceKey("/SubFilter", QPDFObjectHandle::newName("/adbe.pkcs7.detached"));
 
     /* ByteRange placeholder */
+
     QPDFObjectHandle byte_range = QPDFObjectHandle::newArray();
     byte_range.appendItem(QPDFObjectHandle::newInteger(0));
-    byte_range.appendItem(QPDFObjectHandle::newInteger(0));
-    byte_range.appendItem(QPDFObjectHandle::newInteger(0));
-    byte_range.appendItem(QPDFObjectHandle::newInteger(0));
+    byte_range.appendItem(QPDFObjectHandle::newInteger(11111111));
+    byte_range.appendItem(QPDFObjectHandle::newInteger(22222222));
+    byte_range.appendItem(QPDFObjectHandle::newInteger(33333333));
     sig_dict.replaceKey("/ByteRange", byte_range);
 
     /* ===============================
@@ -413,6 +414,32 @@ void bin_to_hex( const unsigned char* bin, size_t bin_len, char* hex_out )
         hex_out[i * 2 + 1] = hex[bin[i] & 0xF];
     }
 }
+
+static int hex_value(char c)
+{
+    if (c >= '0' && c <= '9') return c - '0';
+    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+    return -1;
+}
+
+
+int hex_to_bin(
+    const char* hex,
+    size_t hex_len,
+    unsigned char* out
+    ) {
+    if (hex_len % 2 != 0) return -1;
+
+    for (size_t i = 0; i < hex_len; i += 2) {
+        int hi = hex_value(hex[i]);
+        int lo = hex_value(hex[i + 1]);
+        if (hi < 0 || lo < 0) return -2;
+        out[i / 2] = (unsigned char)((hi << 4) | lo);
+    }
+    return (int)(hex_len / 2);
+}
+
 
 int apply_contents_signature( const char* pdf_path, const unsigned char* pkcs7_der, size_t pkcs7_der_len)
 {
@@ -736,11 +763,111 @@ X509_STORE* create_ca_store(const char* ca_bundle_path)
     return store;
 }
 
+int extract_pkcs7_der_from_pdf(const char* pdf_path,unsigned char** out_der,size_t* out_der_len)
+{
+    FILE* fp = fopen(pdf_path, "rb");
+    if (!fp) return -1;
+
+    fseek(fp, 0, SEEK_END);
+    long file_size = ftell(fp);
+    rewind(fp);
+
+    unsigned char* buf = (unsigned char*)malloc(file_size);
+    if (!buf) {
+        fclose(fp);
+        return -2;
+    }
+
+    fread(buf, 1, file_size, fp);
+    fclose(fp);
+
+    /* "/Contents" 검색 */
+    const char* key = "/Contents";
+    unsigned char* p = buf;
+    unsigned char* end = buf + file_size;
+    unsigned char* contents_pos = NULL;
+
+    while (p < end - strlen(key)) {
+        if (memcmp(p, key, strlen(key)) == 0) {
+            contents_pos = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!contents_pos) {
+        free(buf);
+        return -3;
+    }
+
+    /* '<' 찾기 */
+    unsigned char* hex_start = NULL;
+    p = contents_pos;
+    while (p < end) {
+        if (*p == '<') {
+            hex_start = p + 1;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_start) {
+        free(buf);
+        return -4;
+    }
+
+    /* '>' 찾기 */
+    unsigned char* hex_end = NULL;
+    p = hex_start;
+    while (p < end) {
+        if (*p == '>') {
+            hex_end = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_end) {
+        free(buf);
+        return -5;
+    }
+
+    size_t hex_len = hex_end - hex_start;
+
+    /* 뒤쪽 00 패딩 제거 */
+    while (hex_len >= 2 &&
+           hex_start[hex_len - 1] == '0' &&
+           hex_start[hex_len - 2] == '0') {
+        hex_len -= 2;
+    }
+
+    unsigned char* der = (unsigned char*)malloc(hex_len / 2);
+    if (!der) {
+        free(buf);
+        return -6;
+    }
+
+    int der_len = hex_to_bin((char*)hex_start, hex_len, der);
+    if (der_len <= 0) {
+        free(der);
+        free(buf);
+        return -7;
+    }
+
+    *out_der = der;
+    *out_der_len = der_len;
+
+    free(buf);
+    return 0;
+}
+
+
 int verify_pkcs7_signature(
     const char* pdf_path,
     long* byte_range,
     const unsigned char* pkcs7_der,
     size_t pkcs7_der_len,
+    const char* cert_path,
     const char* ca_bundle_path   // 시스템 CA or custom CA
     )
 {
@@ -748,6 +875,8 @@ int verify_pkcs7_signature(
     ERR_load_crypto_strings();
 
     int ret = -1;
+    X509_STORE* store = NULL;
+    STACK_OF(X509) *pSignerCerts = NULL;
 
     /* PKCS7 파싱 */
     PKCS7* p7 = load_pkcs7_from_der(pkcs7_der, pkcs7_der_len);
@@ -764,11 +893,21 @@ int verify_pkcs7_signature(
     }
 
     /* CA Store */
-    X509_STORE* store = create_ca_store(ca_bundle_path);
-    if (!store) {
-        PKCS7_free(p7);
-        BIO_free(data_bio);
-        return -4;
+    if( ca_bundle_path != NULL )
+    {
+        store = create_ca_store(ca_bundle_path);
+        if (!store) {
+            PKCS7_free(p7);
+            BIO_free(data_bio);
+            return -4;
+        }
+    }
+
+    if( cert_path != NULL )
+    {
+        pSignerCerts = sk_X509_new_null();
+        X509 *pXCert = load_certificate( cert_path );
+        if( pXCert ) sk_X509_push( pSignerCerts, pXCert );
     }
 
     /*
@@ -776,11 +915,12 @@ int verify_pkcs7_signature(
      *  - PKCS7_BINARY  : PDF는 항상 binary
      *  - PKCS7_NOINTERN: 내부 cert 외부에서 검증
      */
-    int flags = PKCS7_BINARY;
+//    int flags = PKCS7_BINARY;
+    int flags = PKCS7_BINARY | PKCS7_DETACHED | PKCS7_NOVERIFY;
 
     ret = PKCS7_verify(
         p7,
-        NULL,          // 서명자 cert (NULL → 내부 cert 사용)
+        pSignerCerts,          // 서명자 cert (NULL → 내부 cert 사용)
         store,         // 신뢰 CA
         data_bio,      // 원문 데이터
         NULL,          // output BIO (detached)
@@ -798,6 +938,7 @@ int verify_pkcs7_signature(
     X509_STORE_free(store);
     BIO_free(data_bio);
     PKCS7_free(p7);
+    if( pSignerCerts ) sk_X509_free( pSignerCerts );
 
     return ret;
 }

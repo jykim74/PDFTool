@@ -8,6 +8,7 @@
 
 #include "man_applet.h"
 #include "common.h"
+#include "js_bin.h"
 
 const QString kSrcPath = "SrcPath";
 const QString kCertPath = "CertPath";
@@ -303,6 +304,8 @@ void MainWindow::clickTest()
 {
     int ret = 0;
     log( "Test" );
+    unsigned char *pCMS = NULL;
+    size_t nCMSLen = 0;
 
     ByteRangeInfo sInfo;
     memset( &sInfo, 0x00, sizeof(ByteRangeInfo));
@@ -316,8 +319,32 @@ void MainWindow::clickTest()
 
     log( QString( "contents_start: %1 contents_end: %2").arg( sInfo.contents_start ).arg( sInfo.contents_end ));
 
-
     ret = apply_byte_range( TEMP_PDF, &sInfo );
     log( QString( "apply_byte_range: %1").arg( ret ));
 
+    ret = create_pkcs7_signature( TEMP_PDF, sInfo.range, CERT_FILE, KEY_FILE, NULL, &pCMS, &nCMSLen );
+    log( QString( "create_pkcs7_signature: %1" ).arg( ret ));
+
+    ret = apply_contents_signature( TEMP_PDF, pCMS, nCMSLen );
+    log( QString( "apply_contents_signature: %1" ).arg( ret ));
+
+    if( pCMS )
+    {
+        JS_free( pCMS );
+        pCMS = NULL;
+        nCMSLen = 0;
+    }
+
+    ret = extract_pkcs7_der_from_pdf( TEMP_PDF, &pCMS, &nCMSLen );
+    log( QString("extract_pkcs7_der_from_pdf: %1").arg(ret ));
+
+    ret = verify_pkcs7_signature( TEMP_PDF, sInfo.range, pCMS, nCMSLen, CERT_FILE, NULL );
+    log( QString("verify_pkcs7_signature: %1").arg(ret));
+
+    if( pCMS )
+    {
+        JS_free( pCMS );
+        pCMS = NULL;
+        nCMSLen = 0;
+    }
 }
