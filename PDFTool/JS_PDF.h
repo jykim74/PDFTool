@@ -22,6 +22,8 @@ typedef struct {
 } ByteRangeInfo;
 
 void add_signature_field(const char* in_pdf, const char* out_pdf);
+void add_signature_field_c(const char* in_pdf, const char* out_pdf);
+
 int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info);
 int apply_byte_range( const char* pdf_path, const ByteRangeInfo* info );
 int apply_contents_signature( const char* pdf_path, const unsigned char* pkcs7_der, size_t pkcs7_der_len);

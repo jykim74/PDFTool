@@ -310,7 +310,9 @@ void MainWindow::clickTest()
     ByteRangeInfo sInfo;
     memset( &sInfo, 0x00, sizeof(ByteRangeInfo));
 
-    add_signature_field( INPUT_PDF, TEMP_PDF );
+//    add_signature_field( INPUT_PDF, TEMP_PDF );
+    add_signature_field_c( INPUT_PDF, TEMP_PDF );
+
     ret = calculate_byte_range( TEMP_PDF, &sInfo );
     log( QString( "calculate_byte_range: %1").arg( ret ));
 

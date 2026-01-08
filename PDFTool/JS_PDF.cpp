@@ -146,7 +146,7 @@ void add_signature_field(const char* in_pdf, const char* out_pdf)
        =============================== */
     const int contents_size = 16384; // 16KB
 //    std::string zeros(contents_size * 2, '0' ); // HEX 문자열
-    std::string zeros(contents_size * 2, 0x00 ); // HEX 문자열
+    std::string zeros(contents_size, 0x00 ); // HEX 문자열
 
     QPDFObjectHandle contents = QPDFObjectHandle::newString(zeros);
 
@@ -205,6 +205,120 @@ void add_signature_field(const char* in_pdf, const char* out_pdf)
 //    writer.setIncremental(true);
 
     writer.write();
+}
+
+void add_signature_field_c(const char* in_pdf, const char* out_pdf)
+{
+    qpdf_data qpdf = qpdf_init();
+    qpdf_read(qpdf, in_pdf, NULL);
+
+    /* =====================================================
+       1. Root / AcroForm
+       ===================================================== */
+    qpdf_oh root = qpdf_get_root(qpdf);
+    qpdf_oh acroform;
+
+    if (!qpdf_oh_has_key(qpdf, root, "/AcroForm")) {
+        acroform = qpdf_oh_new_dictionary(qpdf);
+        qpdf_oh fields = qpdf_oh_new_array(qpdf);
+        qpdf_oh_replace_key(qpdf, acroform, "/Fields", fields);
+        qpdf_oh_replace_key(qpdf, root, "/AcroForm", acroform);
+    } else {
+        acroform = qpdf_oh_get_key(qpdf, root, "/AcroForm");
+    }
+
+    /* SigFlags (권장) */
+    qpdf_oh_replace_key( qpdf,
+        acroform, "/SigFlags", qpdf_oh_new_integer(qpdf, 3));
+
+    qpdf_oh fields = qpdf_oh_get_key(qpdf, acroform, "/Fields");
+
+    /* =====================================================
+       2. Signature Dictionary (/Sig)
+       ===================================================== */
+    qpdf_oh sig_dict = qpdf_oh_new_dictionary(qpdf);
+
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Type",      qpdf_oh_new_name(qpdf, "/Sig"));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Filter",    qpdf_oh_new_name(qpdf, "/Adobe.PPKLite"));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/SubFilter", qpdf_oh_new_name(qpdf, "/adbe.pkcs7.detached"));
+
+    /* ByteRange placeholder */
+    qpdf_oh byte_range = qpdf_oh_new_array( qpdf );
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 0));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/ByteRange", byte_range);
+
+    /* =====================================================
+       3. Contents placeholder (HEX STRING)
+       ===================================================== */
+    const int contents_size = 16384; // DER 기준
+    char* zeros = (char *)calloc(contents_size * 2 + 1, 1);
+    memset(zeros, 0x00, contents_size * 2);
+
+//    qpdf_oh contents = qpdf_oh_new_string(qpdf, zeros);
+//    qpdf_oh_set_hex_string(contents, 1); // ★ 매우 중요
+
+    qpdf_oh contents = qpdf_oh_new_binary_unicode_string( qpdf, zeros, contents_size );
+
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Contents", contents);
+    free(zeros);
+
+    /* 서명 시간 */
+    qpdf_oh_replace_key( qpdf,
+        sig_dict, "/M",
+        qpdf_oh_new_string(qpdf, "D:20260106120000+09'00'")
+        );
+
+    qpdf_oh sig_dict_indirect =
+        qpdf_make_indirect_object(qpdf, sig_dict);
+
+    /* =====================================================
+       4. Signature Field (Widget)
+       ===================================================== */
+    qpdf_oh sig_field = qpdf_oh_new_dictionary(qpdf);
+
+    qpdf_oh_replace_key(qpdf, sig_field, "/Type",    qpdf_oh_new_name(qpdf, "/Annot"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/Subtype", qpdf_oh_new_name(qpdf, "/Widget"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/FT",      qpdf_oh_new_name(qpdf, "/Sig"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/T",       qpdf_oh_new_string(qpdf, "Signature1"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/V",       sig_dict_indirect);
+    qpdf_oh_replace_key(qpdf, sig_field, "/F",       qpdf_oh_new_integer(qpdf, 4));
+
+    /* invisible */
+    qpdf_oh rect = qpdf_oh_new_array(qpdf);
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_replace_key(qpdf, sig_field, "/Rect", rect);
+
+    qpdf_oh sig_field_indirect =
+        qpdf_make_indirect_object(qpdf, sig_field);
+
+    qpdf_oh_append_item(qpdf, fields, sig_field_indirect);
+
+    /* =====================================================
+       5. Page[0] → /Annots
+       ===================================================== */
+    int npages = qpdf_get_num_pages(qpdf);
+    if (npages > 0) {
+        qpdf_oh page = qpdf_get_page_n(qpdf, 0);
+
+        if (!qpdf_oh_has_key(qpdf, page, "/Annots")) {
+            qpdf_oh_replace_key(qpdf, page, "/Annots", qpdf_oh_new_array(qpdf));
+        }
+        qpdf_oh annots = qpdf_oh_get_key(qpdf, page, "/Annots");
+        qpdf_oh_append_item(qpdf, annots, sig_field_indirect);
+    }
+
+    /* =====================================================
+       6. Incremental Write
+       ===================================================== */
+    qpdf_init_write(qpdf, out_pdf);
+    qpdf_write(qpdf);
+    qpdf_cleanup(&qpdf);
 }
 
 
