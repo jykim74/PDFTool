@@ -29,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mMakeSignBtn, SIGNAL(clicked()), this, SLOT(clickMakeSign()));
     connect( mVerifySignBtn, SIGNAL(clicked()), this, SLOT(clickVerifySign()));
     connect( mTestBtn, SIGNAL(clicked()), this, SLOT(clickTest()));
+    connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
 
     initialize();
 
@@ -349,4 +350,16 @@ void MainWindow::clickTest()
         pCMS = NULL;
         nCMSLen = 0;
     }
+}
+
+void MainWindow::clickEncTest()
+{
+    int ret = 0;
+    log( "Enc Test" );
+
+    ret = pdf_encrypt( INPUT_PDF, ENC_PDF );
+    log( QString( "PDF encrypt: %1").arg( ret ));
+
+    ret = pdf_decrypt( ENC_PDF, DEC_PDF );
+    log( QString( "PDF decrypt: %1").arg( ret ));
 }

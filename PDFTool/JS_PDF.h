@@ -7,6 +7,8 @@
 #define INPUT_PDF  "D:/mywork/temp/Hello.pdf"
 #define TEMP_PDF   "D:/mywork/temp/Hello_temp.pdf"
 #define OUTPUT_PDF "D:/mywork/temp/Hello_signed.pdf"
+#define ENC_PDF     "D:/mywork/temp/Hello_enc.pdf"
+#define DEC_PDF     "D:/mywork/temp/Hello_dec.pdf"
 
 #define CERT_FILE  "D:/mywork/temp/CN=SSL_Server,C=kr.crt"
 #define KEY_FILE   "D:/mywork/temp/PrivateKey.pem"
@@ -53,5 +55,8 @@ int verify_pkcs7_signature(
     );
 
 int extract_pkcs7_der_from_pdf(const char* pdf_path,unsigned char** out_der,size_t* out_der_len);
+
+int pdf_encrypt( const char* pdf_path, const char* enc_path );
+int pdf_decrypt( const char* enc_path, const char* pdf_path );
 
 #endif // JS_PDF_H

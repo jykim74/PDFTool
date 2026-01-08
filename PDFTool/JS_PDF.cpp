@@ -1,3 +1,5 @@
+#include <time.h>
+
 #include "JS_PDF.h"
 #include "qpdf/qpdf-c.h"
 #include "js_bin.h"
@@ -14,6 +16,11 @@
 
 #include <qpdf/QPDF.hh>
 #include <qpdf/QPDFObjectHandle.hh>
+
+#include <qpdf/QPDF.hh>
+#include <qpdf/QPDFWriter.hh>
+#include <qpdf/QPDFCryptoImpl.hh>
+#include <memory>
 
 #include <openssl/pkcs7.h>
 #include <openssl/x509.h>
@@ -103,10 +110,41 @@ int JS_PDF_process( const char* whoami, char const* infile, std::string outprefi
     return 0;
 }
 
+void make_pdf_utc_time(char* out, size_t out_size)
+{
+    time_t now = time(NULL);
+    struct tm *tm_utc = NULL;
+
+    tm_utc = gmtime(&now);   // ✅ 무조건 UTC
+    if( tm_utc == NULL ) return;
+#if 0
+    snprintf(out, out_size,
+             "D:%04d%02d%02d%02d%02d%02dZ",
+             tm_utc->tm_year + 1900,
+             tm_utc->tm_mon + 1,
+             tm_utc->tm_mday,
+             tm_utc->tm_hour,
+             tm_utc->tm_min,
+             tm_utc->tm_sec );
+#else
+    snprintf(out, out_size,
+             "D:%04d%02d%02d%02d%02d%02d+00'00'",
+             tm_utc->tm_year + 1900,
+             tm_utc->tm_mon + 1,
+             tm_utc->tm_mday,
+             tm_utc->tm_hour,
+             tm_utc->tm_min,
+             tm_utc->tm_sec );
+#endif
+}
+
 void add_signature_field(const char* in_pdf, const char* out_pdf)
 {
     QPDF pdf;
     pdf.processFile(in_pdf);
+    char sUTCTime[64];
+
+    memset( sUTCTime, 0x00, sizeof(sUTCTime));
 
     /* ===============================
        1. AcroForm 확보
@@ -154,8 +192,10 @@ void add_signature_field(const char* in_pdf, const char* out_pdf)
     sig_dict.replaceKey("/Contents", contents);
 
     /* 서명 시각 */
-    sig_dict.replaceKey("/M",
-                        QPDFObjectHandle::newString("D:20260106120000+09'00'"));
+//    sig_dict.replaceKey("/M",QPDFObjectHandle::newString("D:20260106120000+09'00'"));
+
+    make_pdf_utc_time( sUTCTime, sizeof(sUTCTime));
+    sig_dict.replaceKey("/M",QPDFObjectHandle::newString( sUTCTime ));
 
     QPDFObjectHandle sig_dict_indirect =
         pdf.makeIndirectObject(sig_dict);
@@ -212,6 +252,10 @@ void add_signature_field_c(const char* in_pdf, const char* out_pdf)
     qpdf_data qpdf = qpdf_init();
     qpdf_read(qpdf, in_pdf, NULL);
 
+    char sUTCTime[64];
+
+    memset( sUTCTime, 0x00, sizeof(sUTCTime));
+
     /* =====================================================
        1. Root / AcroForm
        ===================================================== */
@@ -266,10 +310,9 @@ void add_signature_field_c(const char* in_pdf, const char* out_pdf)
     free(zeros);
 
     /* 서명 시간 */
-    qpdf_oh_replace_key( qpdf,
-        sig_dict, "/M",
-        qpdf_oh_new_string(qpdf, "D:20260106120000+09'00'")
-        );
+//    qpdf_oh_replace_key( qpdf, sig_dict, "/M", qpdf_oh_new_string(qpdf, "D:20260106120000+09'00'") );
+    make_pdf_utc_time( sUTCTime, sizeof(sUTCTime));
+    qpdf_oh_replace_key( qpdf, sig_dict, "/M", qpdf_oh_new_string(qpdf, sUTCTime) );
 
     qpdf_oh sig_dict_indirect =
         qpdf_make_indirect_object(qpdf, sig_dict);
@@ -1055,4 +1098,80 @@ int verify_pkcs7_signature(
     if( pSignerCerts ) sk_X509_free( pSignerCerts );
 
     return ret;
+}
+
+int pdf_encrypt( const char* pdf_path, const char* enc_path )
+{
+    qpdf_data qpdf = qpdf_init();
+
+    /* 원본 PDF 읽기 */
+    if (qpdf_read(qpdf, pdf_path, NULL) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "read error\n");
+        qpdf_cleanup(&qpdf);
+        return 1;
+    }
+
+    /*
+     * 암호화 설정
+     *
+     * keylen: 256 (AES-256)
+     * R:      6   (PDF 1.7 Extension Level 3)
+     * P:      권한 비트
+     */
+    qpdf_set_r5_encryption_parameters2(
+        qpdf,
+        "userpass",    /* user password */
+        "ownerpass",   /* owner password */
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        qpdf_r3p_full,
+        0
+        );
+
+    /* 암호화된 PDF 저장 */
+    qpdf_init_write( qpdf, enc_path );
+    if (qpdf_write(qpdf) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "write error\n");
+        qpdf_cleanup(&qpdf);
+        return 1;
+    }
+
+    qpdf_cleanup(&qpdf);
+    return 0;
+}
+
+int pdf_decrypt( const char* enc_path, const char* pdf_path )
+{
+    qpdf_data qpdf = qpdf_init();
+
+    /* 암호화된 PDF + 비밀번호 */
+    if (qpdf_read(qpdf, enc_path, "userpass") != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "password error\n");
+        qpdf_cleanup(&qpdf);
+        return 1;
+    }
+
+    /* 암호 제거 */
+//    qpdf_set_unencrypted(qpdf);
+    qpdf_set_preserve_encryption(qpdf, false);
+
+    /* 저장 */
+
+    qpdf_init_write( qpdf, pdf_path );
+    if (qpdf_write(qpdf) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "write error\n");
+        qpdf_cleanup(&qpdf);
+        return 1;
+    }
+
+    qpdf_cleanup(&qpdf);
+    return 0;
 }
