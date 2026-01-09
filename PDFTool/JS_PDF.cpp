@@ -360,6 +360,7 @@ void add_signature_field_c(const char* in_pdf, const char* out_pdf)
        6. Incremental Write
        ===================================================== */
     qpdf_init_write(qpdf, out_pdf);
+    qpdf_set_linearization( qpdf, true );
     qpdf_write(qpdf);
     qpdf_cleanup(&qpdf);
 }
@@ -1102,76 +1103,69 @@ int verify_pkcs7_signature(
 
 int pdf_encrypt( const char* pdf_path, const char* enc_path )
 {
-    qpdf_data qpdf = qpdf_init();
-
-    /* 원본 PDF 읽기 */
-    if (qpdf_read(qpdf, pdf_path, NULL) != QPDF_SUCCESS)
+    try
     {
-        fprintf(stderr, "read error\n");
-        qpdf_cleanup(&qpdf);
+        const char* in_pdf  = pdf_path;
+        const char* out_pdf = enc_path;
+
+        const char* user_pw  = "userpass";
+        const char* owner_pw = "ownerpass";
+
+        QPDF pdf;
+        pdf.processFile(in_pdf);
+
+        QPDFWriter writer(pdf, out_pdf);
+
+
+        writer.setR2EncryptionParametersInsecure(
+                  user_pw,
+                  owner_pw,
+                  true,
+                  true,
+                  true,
+            true );
+
+
+        writer.write();
+
+        std::cout << "PDF 암호화 완료\n";
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << "에러: " << e.what() << "\n";
         return 1;
     }
 
-    /*
-     * 암호화 설정
-     *
-     * keylen: 256 (AES-256)
-     * R:      6   (PDF 1.7 Extension Level 3)
-     * P:      권한 비트
-     */
-    qpdf_set_r5_encryption_parameters2(
-        qpdf,
-        "userpass",    /* user password */
-        "ownerpass",   /* owner password */
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        qpdf_r3p_full,
-        0
-        );
-
-    /* 암호화된 PDF 저장 */
-    qpdf_init_write( qpdf, enc_path );
-    if (qpdf_write(qpdf) != QPDF_SUCCESS)
-    {
-        fprintf(stderr, "write error\n");
-        qpdf_cleanup(&qpdf);
-        return 1;
-    }
-
-    qpdf_cleanup(&qpdf);
     return 0;
 }
 
 int pdf_decrypt( const char* enc_path, const char* pdf_path )
 {
-    qpdf_data qpdf = qpdf_init();
-
-    /* 암호화된 PDF + 비밀번호 */
-    if (qpdf_read(qpdf, enc_path, "userpass") != QPDF_SUCCESS)
+    try
     {
-        fprintf(stderr, "password error\n");
-        qpdf_cleanup(&qpdf);
+        const char* in_pdf  = enc_path;
+        const char* out_pdf = pdf_path;
+        const char* password = "userpass"; // user 또는 owner 비밀번호
+
+        QPDF pdf;
+
+        // 비밀번호 전달
+        pdf.processFile(in_pdf, password);
+
+        QPDFWriter writer(pdf, out_pdf);
+
+        // 암호화 제거
+        writer.setPreserveEncryption(false);
+
+        writer.write();
+
+        std::cout << "PDF 복호화 완료\n";
+    }
+    catch (std::exception& e)
+    {
+        std::cerr << "에러: " << e.what() << "\n";
         return 1;
     }
 
-    /* 암호 제거 */
-//    qpdf_set_unencrypted(qpdf);
-    qpdf_set_preserve_encryption(qpdf, false);
-
-    /* 저장 */
-
-    qpdf_init_write( qpdf, pdf_path );
-    if (qpdf_write(qpdf) != QPDF_SUCCESS)
-    {
-        fprintf(stderr, "write error\n");
-        qpdf_cleanup(&qpdf);
-        return 1;
-    }
-
-    qpdf_cleanup(&qpdf);
     return 0;
 }
