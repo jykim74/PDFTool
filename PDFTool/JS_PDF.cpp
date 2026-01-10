@@ -241,6 +241,8 @@ void add_signature_field(const char* in_pdf, const char* out_pdf)
        6. Incremental Update 저장
        =============================== */
     QPDFWriter writer(pdf, out_pdf);
+    writer.setStaticID(true);
+    writer.setLinearization(true);
 //    writer.setStaticID(true);
 //    writer.setIncremental(true);
 
