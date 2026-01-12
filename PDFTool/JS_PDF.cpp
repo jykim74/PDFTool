@@ -367,6 +367,129 @@ void add_signature_field_c(const char* in_pdf, const char* out_pdf)
     qpdf_cleanup(&qpdf);
 }
 
+void add_signature_field_c2(const char* in_pdf, BIN *pOut )
+{
+    qpdf_data qpdf = qpdf_init();
+    qpdf_read(qpdf, in_pdf, NULL);
+
+    char sUTCTime[64];
+
+    memset( sUTCTime, 0x00, sizeof(sUTCTime));
+
+    /* =====================================================
+       1. Root / AcroForm
+       ===================================================== */
+    qpdf_oh root = qpdf_get_root(qpdf);
+    qpdf_oh acroform;
+
+    if (!qpdf_oh_has_key(qpdf, root, "/AcroForm")) {
+        acroform = qpdf_oh_new_dictionary(qpdf);
+        qpdf_oh fields = qpdf_oh_new_array(qpdf);
+        qpdf_oh_replace_key(qpdf, acroform, "/Fields", fields);
+        qpdf_oh_replace_key(qpdf, root, "/AcroForm", acroform);
+    } else {
+        acroform = qpdf_oh_get_key(qpdf, root, "/AcroForm");
+    }
+
+    /* SigFlags (권장) */
+    qpdf_oh_replace_key( qpdf,
+                        acroform, "/SigFlags", qpdf_oh_new_integer(qpdf, 3));
+
+    qpdf_oh fields = qpdf_oh_get_key(qpdf, acroform, "/Fields");
+
+    /* =====================================================
+       2. Signature Dictionary (/Sig)
+       ===================================================== */
+    qpdf_oh sig_dict = qpdf_oh_new_dictionary(qpdf);
+
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Type",      qpdf_oh_new_name(qpdf, "/Sig"));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Filter",    qpdf_oh_new_name(qpdf, "/Adobe.PPKLite"));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/SubFilter", qpdf_oh_new_name(qpdf, "/adbe.pkcs7.detached"));
+
+    /* ByteRange placeholder */
+    qpdf_oh byte_range = qpdf_oh_new_array( qpdf );
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 0));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_append_item(qpdf, byte_range, qpdf_oh_new_integer(qpdf, 99999999));
+    qpdf_oh_replace_key(qpdf, sig_dict, "/ByteRange", byte_range);
+
+    /* =====================================================
+       3. Contents placeholder (HEX STRING)
+       ===================================================== */
+    const int contents_size = 16384; // DER 기준
+    char* zeros = (char *)calloc(contents_size * 2 + 1, 1);
+    memset(zeros, 0x00, contents_size * 2);
+
+    //    qpdf_oh contents = qpdf_oh_new_string(qpdf, zeros);
+    //    qpdf_oh_set_hex_string(contents, 1); // ★ 매우 중요
+
+    qpdf_oh contents = qpdf_oh_new_binary_unicode_string( qpdf, zeros, contents_size );
+
+    qpdf_oh_replace_key(qpdf, sig_dict, "/Contents", contents);
+    free(zeros);
+
+    /* 서명 시간 */
+    //    qpdf_oh_replace_key( qpdf, sig_dict, "/M", qpdf_oh_new_string(qpdf, "D:20260106120000+09'00'") );
+    make_pdf_utc_time( sUTCTime, sizeof(sUTCTime));
+    qpdf_oh_replace_key( qpdf, sig_dict, "/M", qpdf_oh_new_string(qpdf, sUTCTime) );
+
+    qpdf_oh sig_dict_indirect =
+        qpdf_make_indirect_object(qpdf, sig_dict);
+
+    /* =====================================================
+       4. Signature Field (Widget)
+       ===================================================== */
+    qpdf_oh sig_field = qpdf_oh_new_dictionary(qpdf);
+
+    qpdf_oh_replace_key(qpdf, sig_field, "/Type",    qpdf_oh_new_name(qpdf, "/Annot"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/Subtype", qpdf_oh_new_name(qpdf, "/Widget"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/FT",      qpdf_oh_new_name(qpdf, "/Sig"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/T",       qpdf_oh_new_string(qpdf, "Signature1"));
+    qpdf_oh_replace_key(qpdf, sig_field, "/V",       sig_dict_indirect);
+    qpdf_oh_replace_key(qpdf, sig_field, "/F",       qpdf_oh_new_integer(qpdf, 4));
+
+    /* invisible */
+    qpdf_oh rect = qpdf_oh_new_array(qpdf);
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_append_item(qpdf, rect, qpdf_oh_new_integer(qpdf,0));
+    qpdf_oh_replace_key(qpdf, sig_field, "/Rect", rect);
+
+    qpdf_oh sig_field_indirect =
+        qpdf_make_indirect_object(qpdf, sig_field);
+
+    qpdf_oh_append_item(qpdf, fields, sig_field_indirect);
+
+    /* =====================================================
+       5. Page[0] → /Annots
+       ===================================================== */
+    int npages = qpdf_get_num_pages(qpdf);
+    if (npages > 0) {
+        qpdf_oh page = qpdf_get_page_n(qpdf, 0);
+
+        if (!qpdf_oh_has_key(qpdf, page, "/Annots")) {
+            qpdf_oh_replace_key(qpdf, page, "/Annots", qpdf_oh_new_array(qpdf));
+        }
+        qpdf_oh annots = qpdf_oh_get_key(qpdf, page, "/Annots");
+        qpdf_oh_append_item(qpdf, annots, sig_field_indirect);
+    }
+
+    /* =====================================================
+       6. Incremental Write
+       ===================================================== */
+    qpdf_init_write_memory( qpdf );
+    qpdf_set_linearization( qpdf, true );
+
+    int nLen = qpdf_get_buffer_length( qpdf );
+    if( nLen > 0 )
+    {
+        JS_BIN_set( pOut, qpdf_get_buffer(qpdf), nLen );
+    }
+
+    qpdf_cleanup(&qpdf);
+}
 
 int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info)
 {
@@ -452,6 +575,73 @@ int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info)
     info->range[3] = file_size - info->range[2];
 
     free(buf);
+    return 0;
+}
+
+int calculate_byte_range2( const BIN *pPDF, ByteRangeInfo* info)
+{
+    /* "/Contents" 문자열 검색 */
+    const char* key = "/Contents";
+    unsigned char* p = pPDF->pVal;
+    unsigned char* end = pPDF->pVal + pPDF->nLen;
+
+    unsigned char* contents_pos = NULL;
+
+    while (p < end - strlen(key)) {
+        if (memcmp(p, key, strlen(key)) == 0) {
+            contents_pos = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!contents_pos) {
+        return -3;
+    }
+
+    /* '<' 위치 찾기 */
+    unsigned char* hex_start = NULL;
+    p = contents_pos;
+
+    while (p < end) {
+        if (*p == '<') {
+            hex_start = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_start) {
+        return -4;
+    }
+
+    /* '>' 위치 찾기 */
+    unsigned char* hex_end = NULL;
+    p = hex_start + 1;
+
+    while (p < end) {
+        if (*p == '>') {
+            hex_end = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_end) {
+        return -5;
+    }
+
+    info->contents_start = hex_start - pPDF->pVal;
+    info->contents_end   = hex_end - pPDF->pVal + 1; // '>' 포함
+
+    long contents_len = info->contents_end - info->contents_start;
+
+    /* ByteRange 계산 */
+    info->range[0] = 0;
+    info->range[1] = info->contents_start;
+    info->range[2] = info->contents_start + contents_len;
+    info->range[3] = pPDF->nLen - info->range[2];
+
     return 0;
 }
 
@@ -562,6 +752,86 @@ int apply_byte_range( const char* pdf_path, const ByteRangeInfo* info )
     fflush(fp);
     fclose(fp);
     free(buf);
+
+    return 0;
+}
+
+int apply_byte_range2( BIN *pPDF, const ByteRangeInfo* info )
+{
+    /* "/ByteRange" 찾기 */
+    const char* key = "/ByteRange";
+    unsigned char* p = pPDF->pVal;
+    unsigned char* end = pPDF->pVal + pPDF->nLen;
+    unsigned char* br_pos = NULL;
+
+    while (p < end - strlen(key)) {
+        if (memcmp(p, key, strlen(key)) == 0) {
+            br_pos = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!br_pos) {
+        return -3;
+    }
+
+    /* '[' 위치 */
+    unsigned char* br_start = NULL;
+    p = br_pos;
+    while (p < end) {
+        if (*p == '[') {
+            br_start = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!br_start) {
+        return -4;
+    }
+
+    /* ']' 위치 */
+    unsigned char* br_end = NULL;
+    p = br_start;
+    while (p < end) {
+        if (*p == ']') {
+            br_end = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!br_end) {
+        return -5;
+    }
+
+    long old_len = br_end - br_start + 1;
+
+    /* 새 ByteRange 문자열 생성 */
+    char new_br[256];
+    snprintf(
+        new_br,
+        sizeof(new_br),
+        "[%ld %ld %ld %ld]",
+        info->range[0],
+        info->range[1],
+        info->range[2],
+        info->range[3]
+        );
+
+    long new_len = strlen(new_br);
+
+    if (new_len > old_len) {
+        /* 길이 초과 → 절대 안 됨 */
+        return -6;
+    }
+
+    /* 기존 영역 공백으로 초기화 */
+    memset(br_start, ' ', old_len);
+
+    /* ByteRange 덮어쓰기 */
+    memcpy(br_start, new_br, new_len);
 
     return 0;
 }
@@ -711,6 +981,82 @@ int apply_contents_signature( const char* pdf_path, const unsigned char* pkcs7_d
     return 0;
 }
 
+int apply_contents_signature2( BIN *pPDF, const unsigned char* pkcs7_der, size_t pkcs7_der_len)
+{
+    /* "/Contents" 찾기 */
+    const char* key = "/Contents";
+    unsigned char* p = pPDF->pVal;
+    unsigned char* end = pPDF->pVal + pPDF->nLen;
+    unsigned char* contents_pos = NULL;
+
+    while (p < end - strlen(key)) {
+        if (memcmp(p, key, strlen(key)) == 0) {
+            contents_pos = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!contents_pos) {
+        return -3;
+    }
+
+    /* '<' 위치 */
+    unsigned char* hex_start = NULL;
+    p = contents_pos;
+    while (p < end) {
+        if (*p == '<') {
+            hex_start = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_start) {
+        return -4;
+    }
+
+    /* '>' 위치 */
+    unsigned char* hex_end = NULL;
+    p = hex_start + 1;
+    while (p < end) {
+        if (*p == '>') {
+            hex_end = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_end) {
+        return -5;
+    }
+
+    long placeholder_len = hex_end - hex_start - 1; // HEX 영역만
+    long required_len = pkcs7_der_len * 2;
+
+    if (required_len > placeholder_len) {
+        /* placeholder 부족 */
+        return -6;
+    }
+
+    /* DER → HEX */
+    char* hex_sig = (char*)malloc(required_len);
+    if (!hex_sig) {
+        return -7;
+    }
+
+    bin_to_hex(pkcs7_der, pkcs7_der_len, hex_sig);
+
+    /* 기존 영역을 '0'으로 초기화 */
+    memset(hex_start + 1, '0', placeholder_len);
+
+    /* HEX 서명 덮어쓰기 */
+    memcpy(hex_start + 1, hex_sig, required_len);
+
+    /* 파일에 다시 기록 */
+    return 0;
+}
+
 void print_openssl_error(void)
 {
     ERR_print_errors_fp(stderr);
@@ -787,6 +1133,16 @@ BIO* create_pdf_data_bio(const char* pdf_path,long start1,long len1,long start2,
     return bio;
 }
 
+BIO* create_pdf_data_bio2(const BIN *pPDF,long start1,long len1,long start2,long len2)
+{
+    BIO* bio = BIO_new(BIO_s_mem());
+
+    BIO_write( bio, &pPDF->pVal[start1], len1 );
+    BIO_write( bio, &pPDF->pVal[start2], len2 );
+
+    return bio;
+}
+
 int create_pkcs7_signature(
     const char* pdf_path,
     long* byte_range,          // [0, len1, start2, len2]
@@ -814,6 +1170,83 @@ int create_pkcs7_signature(
 
     BIO* data_bio = create_pdf_data_bio(
         pdf_path,
+        byte_range[0],
+        byte_range[1],
+        byte_range[2],
+        byte_range[3]
+        );
+
+    if (!data_bio) {
+        print_openssl_error();
+        return -2;
+    }
+
+    /* 🔥 PKCS#7 서명 */
+    PKCS7* p7 = PKCS7_sign(
+        cert,
+        pkey,
+        ca_chain,
+        data_bio,
+        PKCS7_DETACHED | PKCS7_BINARY
+        );
+
+    if (!p7) {
+        print_openssl_error();
+        return -3;
+    }
+
+    /* DER 추출 */
+    int len = i2d_PKCS7(p7, NULL);
+    if (len <= 0) {
+        print_openssl_error();
+        return -4;
+    }
+
+    unsigned char* der = (unsigned char*)OPENSSL_malloc(len);
+    unsigned char* p = der;
+
+    i2d_PKCS7(p7, &p);
+
+    *out_der = der;
+    *out_der_len = len;
+
+    /* 정리 */
+    PKCS7_free(p7);
+    BIO_free(data_bio);
+    EVP_PKEY_free(pkey);
+    X509_free(cert);
+    if (ca_chain) sk_X509_pop_free(ca_chain, X509_free);
+
+    return 0;
+}
+
+int create_pkcs7_signature2(
+    const BIN *pPDF,
+    long* byte_range,          // [0, len1, start2, len2]
+    const char* cert_path,
+    const char* key_path,
+    const char* ca_chain_path, // NULL 가능
+    unsigned char** out_der,
+    size_t* out_der_len)
+{
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    EVP_PKEY* pkey = load_private_key(key_path);
+    X509* cert = load_certificate(cert_path);
+    STACK_OF(X509)* ca_chain = NULL;
+
+    if (!pkey || !cert) {
+        print_openssl_error();
+        return -1;
+    }
+
+    if (ca_chain_path) {
+        ca_chain = load_ca_chain(ca_chain_path);
+    }
+
+    BIO* data_bio = create_pdf_data_bio2(
+        pPDF,
         byte_range[0],
         byte_range[1],
         byte_range[2],
@@ -907,6 +1340,19 @@ BIO* create_pdf_data_bio_for_verify(
     }
 
     fclose(fp);
+    return bio;
+}
+
+BIO* create_pdf_data_bio_for_verify2(
+    const BIN *pPDF,
+    long* byte_range   // [0, len1, start2, len2]
+    )
+{
+    BIO* bio = BIO_new(BIO_s_mem());
+
+    BIO_write(bio, &pPDF->pVal[byte_range[0]], byte_range[1] );
+    BIO_write(bio, &pPDF->pVal[byte_range[2]], byte_range[3] );
+
     return bio;
 }
 
@@ -1021,6 +1467,81 @@ int extract_pkcs7_der_from_pdf(const char* pdf_path,unsigned char** out_der,size
     return 0;
 }
 
+int extract_pkcs7_der_from_pdf2(const BIN *pPDF, BIN *pCMS )
+{
+    /* "/Contents" 검색 */
+    const char* key = "/Contents";
+    unsigned char* p = pPDF->pVal;
+    unsigned char* end = pPDF->pVal + pPDF->nLen;
+    unsigned char* contents_pos = NULL;
+
+    while (p < end - strlen(key)) {
+        if (memcmp(p, key, strlen(key)) == 0) {
+            contents_pos = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!contents_pos) {
+        return -3;
+    }
+
+    /* '<' 찾기 */
+    unsigned char* hex_start = NULL;
+    p = contents_pos;
+    while (p < end) {
+        if (*p == '<') {
+            hex_start = p + 1;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_start) {
+        return -4;
+    }
+
+    /* '>' 찾기 */
+    unsigned char* hex_end = NULL;
+    p = hex_start;
+    while (p < end) {
+        if (*p == '>') {
+            hex_end = p;
+            break;
+        }
+        p++;
+    }
+
+    if (!hex_end) {
+        return -5;
+    }
+
+    size_t hex_len = hex_end - hex_start;
+
+    /* 뒤쪽 00 패딩 제거 */
+    while (hex_len >= 2 &&
+           hex_start[hex_len - 1] == '0' &&
+           hex_start[hex_len - 2] == '0') {
+        hex_len -= 2;
+    }
+
+    unsigned char* der = (unsigned char*)malloc(hex_len / 2);
+    if (!der) {
+        return -6;
+    }
+
+    int der_len = hex_to_bin((char*)hex_start, hex_len, der);
+    if (der_len <= 0) {
+        free(der);
+        return -7;
+    }
+
+    pCMS->pVal = der;
+    pCMS->nLen = der_len;
+
+    return 0;
+}
 
 int verify_pkcs7_signature(
     const char* pdf_path,
@@ -1076,6 +1597,87 @@ int verify_pkcs7_signature(
      *  - PKCS7_NOINTERN: 내부 cert 외부에서 검증
      */
 //    int flags = PKCS7_BINARY;
+    int flags = PKCS7_BINARY | PKCS7_DETACHED | PKCS7_NOVERIFY;
+
+    ret = PKCS7_verify(
+        p7,
+        pSignerCerts,          // 서명자 cert (NULL → 내부 cert 사용)
+        store,         // 신뢰 CA
+        data_bio,      // 원문 데이터
+        NULL,          // output BIO (detached)
+        flags
+        );
+
+    if (ret != 1) {
+        print_openssl_error();
+        ret = 0;   // 검증 실패
+    } else {
+        ret = 1;   // 검증 성공
+    }
+
+    /* 정리 */
+    X509_STORE_free(store);
+    BIO_free(data_bio);
+    PKCS7_free(p7);
+    if( pSignerCerts ) sk_X509_free( pSignerCerts );
+
+    return ret;
+}
+
+int verify_pkcs7_signature2(
+    const BIN *pPDF,
+    long* byte_range,
+    const unsigned char* pkcs7_der,
+    size_t pkcs7_der_len,
+    const char* cert_path,
+    const char* ca_bundle_path   // 시스템 CA or custom CA
+    )
+{
+    OpenSSL_add_all_algorithms();
+    ERR_load_crypto_strings();
+
+    int ret = -1;
+    X509_STORE* store = NULL;
+    STACK_OF(X509) *pSignerCerts = NULL;
+
+    /* PKCS7 파싱 */
+    PKCS7* p7 = load_pkcs7_from_der(pkcs7_der, pkcs7_der_len);
+    if (!p7) {
+        print_openssl_error();
+        return -2;
+    }
+
+    /* ByteRange 데이터 */
+    BIO* data_bio = create_pdf_data_bio_for_verify2(pPDF, byte_range);
+    if (!data_bio) {
+        PKCS7_free(p7);
+        return -3;
+    }
+
+    /* CA Store */
+    if( ca_bundle_path != NULL )
+    {
+        store = create_ca_store(ca_bundle_path);
+        if (!store) {
+            PKCS7_free(p7);
+            BIO_free(data_bio);
+            return -4;
+        }
+    }
+
+    if( cert_path != NULL )
+    {
+        pSignerCerts = sk_X509_new_null();
+        X509 *pXCert = load_certificate( cert_path );
+        if( pXCert ) sk_X509_push( pSignerCerts, pXCert );
+    }
+
+    /*
+     * PKCS7_verify flags
+     *  - PKCS7_BINARY  : PDF는 항상 binary
+     *  - PKCS7_NOINTERN: 내부 cert 외부에서 검증
+     */
+    //    int flags = PKCS7_BINARY;
     int flags = PKCS7_BINARY | PKCS7_DETACHED | PKCS7_NOVERIFY;
 
     ret = PKCS7_verify(
@@ -1169,5 +1771,88 @@ int pdf_decrypt( const char* enc_path, const char* pdf_path )
         return 1;
     }
 
+    return 0;
+}
+
+int write_pdf( const BIN *pPDF, const char *out_file, const char *pPassword )
+{
+    qpdf_data qpdf = qpdf_init();
+    qpdf_read_memory( qpdf, out_file, (char const *)pPDF->pVal, pPDF->nLen, pPassword );
+
+    qpdf_init_write( qpdf, out_file );
+    qpdf_set_linearization( qpdf, true );
+    qpdf_write( qpdf );
+
+    qpdf_cleanup( &qpdf );
+    return 0;
+}
+
+int pdf_encrypt_c( const char* in_pdf, const char* out_pdf, const char *password )
+{
+    qpdf_data qpdf = qpdf_init();
+    if (!qpdf)
+        return -1;
+
+    const char* user_pw = password;
+    const char* owner_pw = password;
+
+    /* 입력 PDF 로드 */
+    if (qpdf_read(qpdf, in_pdf, NULL) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "Failed to read input PDF\n");
+        qpdf_cleanup(&qpdf);
+        return -1;
+    }
+
+    /* 암호화 설정 */
+    qpdf_set_r2_encryption_parameters_insecure(
+        qpdf,
+        user_pw,          /* user password */
+        owner_pw,         /* owner password */
+        QPDF_FALSE,
+        QPDF_FALSE,
+        QPDF_FALSE,
+        QPDF_FALSE );
+
+    /* 출력 */
+    qpdf_init_write( qpdf, out_pdf );
+    if (qpdf_write(qpdf) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "Failed to write encrypted PDF\n");
+        qpdf_cleanup(&qpdf);
+        return -1;
+    }
+
+    qpdf_cleanup(&qpdf);
+    return 0;
+}
+
+int pdf_decrypt_c( const char* in_pdf, const char *password, const char* out_pdf )
+{
+    qpdf_data qpdf = qpdf_init();
+    if (!qpdf)
+        return -1;
+
+    /* 암호 포함 PDF 로드 */
+    if (qpdf_read(qpdf, in_pdf, password) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "Failed to open encrypted PDF\n");
+        qpdf_cleanup(&qpdf);
+        return -1;
+    }
+
+    /* 암호 제거 */
+    qpdf_set_preserve_encryption(qpdf, QPDF_FALSE);
+
+    /* 출력 */
+    qpdf_init_write( qpdf, out_pdf );
+    if (qpdf_write(qpdf) != QPDF_SUCCESS)
+    {
+        fprintf(stderr, "Failed to write decrypted PDF\n");
+        qpdf_cleanup(&qpdf);
+        return -1;
+    }
+
+    qpdf_cleanup(&qpdf);
     return 0;
 }
