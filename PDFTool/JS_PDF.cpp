@@ -481,6 +481,7 @@ void add_signature_field_c2(const char* in_pdf, BIN *pOut )
        ===================================================== */
     qpdf_init_write_memory( qpdf );
     qpdf_set_linearization( qpdf, true );
+    qpdf_write( qpdf );
 
     int nLen = qpdf_get_buffer_length( qpdf );
     if( nLen > 0 )
@@ -981,7 +982,7 @@ int apply_contents_signature( const char* pdf_path, const unsigned char* pkcs7_d
     return 0;
 }
 
-int apply_contents_signature2( BIN *pPDF, const unsigned char* pkcs7_der, size_t pkcs7_der_len)
+int apply_contents_signature2( BIN *pPDF, const BIN *pCMS )
 {
     /* "/Contents" 찾기 */
     const char* key = "/Contents";
@@ -1032,7 +1033,7 @@ int apply_contents_signature2( BIN *pPDF, const unsigned char* pkcs7_der, size_t
     }
 
     long placeholder_len = hex_end - hex_start - 1; // HEX 영역만
-    long required_len = pkcs7_der_len * 2;
+    long required_len = pCMS->nLen * 2;
 
     if (required_len > placeholder_len) {
         /* placeholder 부족 */
@@ -1045,7 +1046,7 @@ int apply_contents_signature2( BIN *pPDF, const unsigned char* pkcs7_der, size_t
         return -7;
     }
 
-    bin_to_hex(pkcs7_der, pkcs7_der_len, hex_sig);
+    bin_to_hex( pCMS->pVal, pCMS->nLen, hex_sig);
 
     /* 기존 영역을 '0'으로 초기화 */
     memset(hex_start + 1, '0', placeholder_len);
@@ -1226,8 +1227,7 @@ int create_pkcs7_signature2(
     const char* cert_path,
     const char* key_path,
     const char* ca_chain_path, // NULL 가능
-    unsigned char** out_der,
-    size_t* out_der_len)
+    BIN *pCMS )
 {
     OpenSSL_add_all_algorithms();
     ERR_load_crypto_strings();
@@ -1284,8 +1284,8 @@ int create_pkcs7_signature2(
 
     i2d_PKCS7(p7, &p);
 
-    *out_der = der;
-    *out_der_len = len;
+    pCMS->pVal = der;
+    pCMS->nLen = len;
 
     /* 정리 */
     PKCS7_free(p7);
@@ -1627,8 +1627,7 @@ int verify_pkcs7_signature(
 int verify_pkcs7_signature2(
     const BIN *pPDF,
     long* byte_range,
-    const unsigned char* pkcs7_der,
-    size_t pkcs7_der_len,
+    const BIN *pCMS,
     const char* cert_path,
     const char* ca_bundle_path   // 시스템 CA or custom CA
     )
@@ -1641,7 +1640,7 @@ int verify_pkcs7_signature2(
     STACK_OF(X509) *pSignerCerts = NULL;
 
     /* PKCS7 파싱 */
-    PKCS7* p7 = load_pkcs7_from_der(pkcs7_der, pkcs7_der_len);
+    PKCS7* p7 = load_pkcs7_from_der( pCMS->pVal, pCMS->nLen);
     if (!p7) {
         print_openssl_error();
         return -2;
@@ -1794,7 +1793,7 @@ int pdf_encrypt_c( const char* in_pdf, const char* out_pdf, const char *password
         return -1;
 
     const char* user_pw = password;
-    const char* owner_pw = password;
+    const char* owner_pw = "owner_pw";
 
     /* 입력 PDF 로드 */
     if (qpdf_read(qpdf, in_pdf, NULL) != QPDF_SUCCESS)
@@ -1805,14 +1804,18 @@ int pdf_encrypt_c( const char* in_pdf, const char* out_pdf, const char *password
     }
 
     /* 암호화 설정 */
-    qpdf_set_r2_encryption_parameters_insecure(
+    qpdf_set_r5_encryption_parameters2(
         qpdf,
         user_pw,          /* user password */
         owner_pw,         /* owner password */
-        QPDF_FALSE,
-        QPDF_FALSE,
-        QPDF_FALSE,
-        QPDF_FALSE );
+        QPDF_TRUE,
+        QPDF_TRUE,
+        QPDF_TRUE,
+        QPDF_TRUE,
+        QPDF_TRUE,
+        QPDF_TRUE,
+        qpdf_r3p_none,
+        QPDF_TRUE );
 
     /* 출력 */
     qpdf_init_write( qpdf, out_pdf );

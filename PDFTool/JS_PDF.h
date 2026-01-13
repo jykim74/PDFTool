@@ -35,7 +35,7 @@ int apply_byte_range( const char* pdf_path, const ByteRangeInfo* info );
 int apply_byte_range2( BIN *pPDF, const ByteRangeInfo* info );
 
 int apply_contents_signature( const char* pdf_path, const unsigned char* pkcs7_der, size_t pkcs7_der_len);
-int apply_contents_signature2( BIN *pPDF, const unsigned char* pkcs7_der, size_t pkcs7_der_len);
+int apply_contents_signature2( BIN *pPDF, const BIN *pCMS );
 
 
 void bin_to_hex( const unsigned char* bin, size_t bin_len, char* hex_out );
@@ -59,8 +59,7 @@ int create_pkcs7_signature2(
     const char* cert_path,
     const char* key_path,
     const char* ca_chain_path, // NULL 가능
-    unsigned char** out_der,
-    size_t* out_der_len);
+    BIN *pCMS );
 
 BIO* create_pdf_data_bio_for_verify(
     const char* pdf_path,
@@ -84,14 +83,13 @@ int verify_pkcs7_signature(
 int verify_pkcs7_signature2(
     const BIN *pPDF,
     long* byte_range,
-    const unsigned char* pkcs7_der,
-    size_t pkcs7_der_len,
+    const BIN *pCMS,
     const char* cert_path,
     const char* ca_bundle_path   // 시스템 CA or custom CA
     );
 
 int extract_pkcs7_der_from_pdf(const char* pdf_path,unsigned char** out_der,size_t* out_der_len);
-int extract_pkcs7_der_from_pdf2(const BIN* pPDF, BIN* pCMS );
+int extract_pkcs7_der_from_pdf2( const BIN* pPDF, BIN* pCMS );
 
 int write_pdf( const BIN *pPDF, const char *out_file, const char *pPassword );
 

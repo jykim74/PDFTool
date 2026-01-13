@@ -29,6 +29,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mMakeSignBtn, SIGNAL(clicked()), this, SLOT(clickMakeSign()));
     connect( mVerifySignBtn, SIGNAL(clicked()), this, SLOT(clickVerifySign()));
     connect( mTestBtn, SIGNAL(clicked()), this, SLOT(clickTest()));
+    connect( mTest2Btn, SIGNAL(clicked()), this, SLOT(clickTest2()));
     connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
 
     initialize();
@@ -352,14 +353,59 @@ void MainWindow::clickTest()
     }
 }
 
+void MainWindow::clickTest2()
+{
+    int ret = 0;
+    log( "Test2" );
+
+
+    BIN binDst = {0,0};
+    BIN binCMS = {0,0};
+
+    ByteRangeInfo sInfo;
+    memset( &sInfo, 0x00, sizeof(ByteRangeInfo));
+
+    add_signature_field_c2( INPUT_PDF, &binDst );
+
+    ret = calculate_byte_range2( &binDst, &sInfo );
+    log( QString( "calculate_byte_range: %1").arg( ret ));
+
+    log( QString( "range[0]: %1 range[1]: %2 range[2]: %3 range[3]: %4")
+            .arg( sInfo.range[0] ).arg( sInfo.range[1] ).arg( sInfo.range[2] ).arg( sInfo.range[3] ) );
+
+    log( QString( "contents_start: %1 contents_end: %2").arg( sInfo.contents_start ).arg( sInfo.contents_end ));
+
+    ret = apply_byte_range2( &binDst, &sInfo );
+    log( QString( "apply_byte_range: %1").arg( ret ));
+
+    ret = create_pkcs7_signature2( &binDst, sInfo.range, CERT_FILE, KEY_FILE, NULL, &binCMS );
+    log( QString( "create_pkcs7_signature: %1" ).arg( ret ));
+
+    ret = apply_contents_signature2( &binDst, &binCMS );
+    log( QString( "apply_contents_signature: %1" ).arg( ret ));
+
+    JS_BIN_reset( &binCMS );
+
+    ret = extract_pkcs7_der_from_pdf2( &binDst, &binCMS );
+    log( QString("extract_pkcs7_der_from_pdf: %1").arg(ret ));
+
+    ret = verify_pkcs7_signature2( &binDst, sInfo.range, &binCMS, CERT_FILE, NULL );
+    log( QString("verify_pkcs7_signature: %1").arg(ret));
+
+    JS_BIN_reset( &binCMS );
+    JS_BIN_reset( &binDst );
+}
+
 void MainWindow::clickEncTest()
 {
     int ret = 0;
+    const char *pPasswd = "test";
+
     log( "Enc Test" );
 
-    ret = pdf_encrypt( INPUT_PDF, ENC_PDF );
+    ret = pdf_encrypt_c( INPUT_PDF, ENC_PDF, pPasswd );
     log( QString( "PDF encrypt: %1").arg( ret ));
 
-    ret = pdf_decrypt( ENC_PDF, DEC_PDF );
+    ret = pdf_decrypt_c( ENC_PDF, pPasswd, DEC_PDF );
     log( QString( "PDF decrypt: %1").arg( ret ));
 }

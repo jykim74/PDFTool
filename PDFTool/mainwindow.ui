@@ -216,6 +216,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="mTest2Btn">
+            <property name="text">
+             <string>Test2</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="mEncTestBtn">
             <property name="text">
              <string>Enc Test</string>
