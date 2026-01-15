@@ -36,9 +36,6 @@ add_executable(PDFTool
 )
 
 target_link_options( PDFTool PRIVATE -mwindows -MD )
-target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
-  PKILib crypto ltdl ssl ws2_32 qpdf)
-
 
 if(WIN32)
     include_directories(
@@ -61,6 +58,8 @@ if(WIN32)
        ../../lib/win64 )
    endif()
 
+   target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
+     PKILib crypto ltdl ssl ws2_32 qpdf)
 
 elseif(APPLE)
     include_directories(
