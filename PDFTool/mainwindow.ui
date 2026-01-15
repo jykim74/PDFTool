@@ -223,6 +223,13 @@
            </widget>
           </item>
           <item>
+           <widget class="QPushButton" name="mTest3Btn">
+            <property name="text">
+             <string>Test3</string>
+            </property>
+           </widget>
+          </item>
+          <item>
            <widget class="QPushButton" name="mEncTestBtn">
             <property name="text">
              <string>Enc Test</string>

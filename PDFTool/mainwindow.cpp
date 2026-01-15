@@ -3,12 +3,13 @@
 
 #include "mainwindow.h"
 #include "qpdf/qpdf-c.h"
-#include "JS_PDF.h"
+#include "js_pdf_api.h"
 #include <QSettings>
 
 #include "man_applet.h"
 #include "common.h"
 #include "js_bin.h"
+#include "js_pdf.h"
 
 const QString kSrcPath = "SrcPath";
 const QString kCertPath = "CertPath";
@@ -30,6 +31,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mVerifySignBtn, SIGNAL(clicked()), this, SLOT(clickVerifySign()));
     connect( mTestBtn, SIGNAL(clicked()), this, SLOT(clickTest()));
     connect( mTest2Btn, SIGNAL(clicked()), this, SLOT(clickTest2()));
+    connect( mTest3Btn, SIGNAL(clicked()), this, SLOT(clickTest3()));
     connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
 
     initialize();
@@ -396,6 +398,31 @@ void MainWindow::clickTest2()
     JS_BIN_reset( &binDst );
 }
 
+void MainWindow::clickTest3()
+{
+    const char *pPasswd = NULL;
+    time_t now_t = time(NULL);
+    BIN binDst = {0,0};
+    BIN binRead = {0,0};
+
+    int ret = JS_PDF_makeUnsignedFile( INPUT_PDF, pPasswd, now_t, TEMP_PDF );
+
+    ret = JS_PDF_makeUnsigned( INPUT_PDF, pPasswd, now_t, &binDst );
+
+    JS_BIN_fileRead( TEMP_PDF, &binRead );
+
+    log( QString( "FileSize: %1 BIN size: %2").arg( binRead.nLen ).arg( binDst.nLen ));
+
+    ret = JS_BIN_cmp( &binRead, &binDst );
+    if( ret == 0 )
+        log( "File same" );
+    else
+        log( QString( "File different: %1").arg(ret ));
+
+    JS_BIN_reset( &binDst );
+    JS_BIN_reset( &binRead );
+}
+
 void MainWindow::clickEncTest()
 {
     int ret = 0;
@@ -403,9 +430,11 @@ void MainWindow::clickEncTest()
 
     log( "Enc Test" );
 
-    ret = pdf_encrypt_c( INPUT_PDF, ENC_PDF, pPasswd );
+//    ret = pdf_encrypt_c( INPUT_PDF, ENC_PDF, pPasswd );
+    ret = JS_PDF_encryptFile( INPUT_PDF, pPasswd, ENC_PDF );
     log( QString( "PDF encrypt: %1").arg( ret ));
 
-    ret = pdf_decrypt_c( ENC_PDF, pPasswd, DEC_PDF );
+//    ret = pdf_decrypt_c( ENC_PDF, pPasswd, DEC_PDF );
+    ret = JS_PDF_decryptFile( ENC_PDF, pPasswd, DEC_PDF );
     log( QString( "PDF decrypt: %1").arg( ret ));
 }

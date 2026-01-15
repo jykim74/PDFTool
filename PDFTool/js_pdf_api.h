@@ -1,5 +1,5 @@
-#ifndef JS_PDF_H
-#define JS_PDF_H
+#ifndef JS_PDF_API_H
+#define JS_PDF_API_H
 
 #include <iostream>
 #include "openssl/bio.h"
@@ -99,4 +99,4 @@ int pdf_decrypt( const char* enc_path, const char* pdf_path );
 int pdf_encrypt_c( const char* pdf_path, const char* enc_path, const char *password );
 int pdf_decrypt_c( const char* in_pdf, const char *password, const char* out_pdf  );
 
-#endif // JS_PDF_H
+#endif // JS_PDF_API_H

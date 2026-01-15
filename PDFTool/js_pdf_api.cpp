@@ -1,6 +1,6 @@
 #include <time.h>
 
-#include "JS_PDF.h"
+#include "js_pdf_api.h"
 #include "qpdf/qpdf-c.h"
 #include "js_bin.h"
 

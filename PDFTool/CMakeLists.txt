@@ -29,14 +29,15 @@ set(PROJECT_SOURCES
 add_executable(PDFTool
     ${PROJECT_SOURCES}
     man_applet.h man_applet.cpp
-    JS_PDF.h
-    JS_PDF.cpp
+    js_pdf_api.h
+    js_pdf_api.cpp
     common.h
     common.cpp
 )
 
 target_link_options( PDFTool PRIVATE -mwindows -MD )
-target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets crypto PKILib qpdf)
+target_link_libraries(PDFTool PRIVATE Qt${QT_VERSION_MAJOR}::Widgets
+  PKILib crypto ltdl ssl ws2_32 qpdf)
 
 
 if(WIN32)
