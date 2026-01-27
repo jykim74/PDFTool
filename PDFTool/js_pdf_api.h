@@ -6,6 +6,8 @@
 #include "js_bin.h"
 
 #define INPUT_PDF  "D:/mywork/temp/Hello.pdf"
+#define INPUT2_PDF  "D:/mywork/temp/Hello2.pdf"
+#define INPUT3_PDF  "D:/mywork/temp/Hello3.pdf"
 #define TEMP_PDF   "D:/mywork/temp/Hello_temp.pdf"
 #define OUTPUT_PDF "D:/mywork/temp/Hello_signed.pdf"
 #define ENC_PDF     "D:/mywork/temp/Hello_enc.pdf"

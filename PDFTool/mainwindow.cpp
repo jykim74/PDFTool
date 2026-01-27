@@ -400,41 +400,66 @@ void MainWindow::clickTest2()
 
 void MainWindow::clickTest3()
 {
-    const char *pPasswd = NULL;
-    time_t now_t = time(NULL);
-    BIN binDst = {0,0};
-    BIN binRead = {0,0};
+    int ret = 0;
+    BIN binSrc = {0,0};
+    BIN binSrc2 = {0,0};
+    BIN binSrc3 = {0,0};
 
-    int ret = JS_PDF_makeUnsignedFile( INPUT_PDF, pPasswd, now_t, TEMP_PDF );
+    JS_BIN_fileRead( INPUT_PDF, &binSrc );
 
-    ret = JS_PDF_makeUnsigned( INPUT_PDF, pPasswd, now_t, &binDst );
+    qpdf_data qpdf = qpdf_init();
+    ret = qpdf_read( qpdf, INPUT_PDF, NULL );
+//    ret = qpdf_read_memory( qpdf, INPUT_PDF, (const char *)binSrc.pVal, binSrc.nLen, NULL );
 
-    JS_BIN_fileRead( TEMP_PDF, &binRead );
+    qpdf_init_write_memory( qpdf );
+    qpdf_set_static_ID( qpdf, QPDF_TRUE );
+    qpdf_set_linearization( qpdf, QPDF_TRUE );
 
-    log( QString( "FileSize: %1 BIN size: %2").arg( binRead.nLen ).arg( binDst.nLen ));
+    qpdf_write(qpdf);
 
-    ret = JS_BIN_cmp( &binRead, &binDst );
-    if( ret == 0 )
-        log( "File same" );
+    JS_BIN_set( &binSrc2, qpdf_get_buffer(qpdf), qpdf_get_buffer_length(qpdf));
+
+    log( QString("Src Len: %1 Src2 Len: %2").arg( binSrc.nLen ).arg( binSrc2.nLen ));
+
+    if( JS_BIN_cmp( &binSrc, &binSrc2) == 0 )
+    {
+        log( "Same" );
+    }
     else
-        log( QString( "File different: %1").arg(ret ));
+    {
+        log( "Different" );
+    }
 
-    JS_BIN_reset( &binDst );
-    JS_BIN_reset( &binRead );
+    JS_BIN_fileWrite( &binSrc2, INPUT2_PDF );
+
+    qpdf_data qpdf2 = qpdf_init();
+    ret = qpdf_read( qpdf2, INPUT2_PDF, NULL );
+
+    qpdf_init_write( qpdf2, INPUT3_PDF );
+    qpdf_set_static_ID( qpdf2, QPDF_TRUE );
+    qpdf_set_linearization( qpdf2, QPDF_TRUE );
+    qpdf_write(qpdf2);
+
+    JS_BIN_fileRead( INPUT3_PDF, &binSrc3 );
+
+    log( QString("Src2 Len: %1 Src3 Len: %2").arg( binSrc2.nLen ).arg( binSrc3.nLen ));
+
+    if( JS_BIN_cmp( &binSrc2, &binSrc3) == 0 )
+    {
+        log( "Same" );
+    }
+    else
+    {
+        log( "Different" );
+    }
+
+
+    JS_BIN_reset( &binSrc );
+    JS_BIN_reset( &binSrc2 );
+    JS_BIN_reset( &binSrc3 );
 }
 
 void MainWindow::clickEncTest()
 {
-    int ret = 0;
-    const char *pPasswd = "test";
 
-    log( "Enc Test" );
-
-//    ret = pdf_encrypt_c( INPUT_PDF, ENC_PDF, pPasswd );
-    ret = JS_PDF_encryptFile( INPUT_PDF, pPasswd, ENC_PDF );
-    log( QString( "PDF encrypt: %1").arg( ret ));
-
-//    ret = pdf_decrypt_c( ENC_PDF, pPasswd, DEC_PDF );
-    ret = JS_PDF_decryptFile( ENC_PDF, pPasswd, DEC_PDF );
-    log( QString( "PDF decrypt: %1").arg( ret ));
 }
