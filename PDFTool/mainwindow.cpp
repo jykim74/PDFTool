@@ -33,6 +33,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mTest2Btn, SIGNAL(clicked()), this, SLOT(clickTest2()));
     connect( mTest3Btn, SIGNAL(clicked()), this, SLOT(clickTest3()));
     connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
+    connect( mGetRangeBtn, SIGNAL(clicked()), this, SLOT(clickGetRange()));
 
     initialize();
 
@@ -413,7 +414,7 @@ void MainWindow::clickTest3()
 
     qpdf_init_write_memory( qpdf );
     qpdf_set_static_ID( qpdf, QPDF_TRUE );
-    qpdf_set_linearization( qpdf, QPDF_TRUE );
+    qpdf_set_linearization( qpdf, QPDF_FALSE );
 
     qpdf_write(qpdf);
 
@@ -437,7 +438,7 @@ void MainWindow::clickTest3()
 
     qpdf_init_write( qpdf2, INPUT3_PDF );
     qpdf_set_static_ID( qpdf2, QPDF_TRUE );
-    qpdf_set_linearization( qpdf2, QPDF_TRUE );
+    qpdf_set_linearization( qpdf2, QPDF_FALSE );
     qpdf_write(qpdf2);
 
     JS_BIN_fileRead( INPUT3_PDF, &binSrc3 );
@@ -461,5 +462,55 @@ void MainWindow::clickTest3()
 
 void MainWindow::clickEncTest()
 {
+    const char *pPass = "1111";
+    QString strSrcPath = mSrcPathText->text();
+    QString strDstPath = mDstPathText->text();
 
+    qpdf_data qpdf = qpdf_init();
+
+    qpdf_read(qpdf, strSrcPath.toLocal8Bit().toStdString().c_str(), pPass);
+
+    /* ★ 전자서명 필수 설정 */
+
+
+    /* Incremental write */
+    qpdf_init_write( qpdf, OUTPUT_PDF );
+    qpdf_set_linearization(qpdf, QPDF_FALSE);
+    qpdf_set_static_ID(qpdf, QPDF_TRUE);   // ID 고정 (중요)
+    qpdf_write(qpdf);
+
+    qpdf_cleanup(&qpdf);
+}
+
+void MainWindow::clickGetRange()
+{
+    JByteRange sRange;
+    JByteRange sRange2;
+
+    QString strSrcPath = mSrcPathText->text();
+
+    BIN binSrc = {0,0};
+
+    memset( &sRange, 0x00, sizeof(sRange ));
+    memset( &sRange2, 0x00, sizeof(sRange2 ));
+
+    JS_PDF_getByteRangeFile( strSrcPath.toLocal8Bit().toStdString().c_str(), &sRange );
+
+    log( QString( "Range[ %1 %2 %3 %4 ]")
+            .arg(sRange.nFirstStart)
+            .arg( sRange.nFirstLen )
+            .arg( sRange.nSecondStart )
+            .arg( sRange.nSecondLen ));
+
+    JS_PDF_readPlain( strSrcPath.toLocal8Bit().toStdString().c_str(), NULL, &binSrc );
+
+    JS_PDF_getByteRange( &binSrc, &sRange2 );
+
+    log( QString( "Range2[ %1 %2 %3 %4 ]")
+            .arg(sRange2.nFirstStart)
+            .arg( sRange2.nFirstLen )
+            .arg( sRange2.nSecondStart )
+            .arg( sRange2.nSecondLen ));
+
+    JS_BIN_reset( &binSrc );
 }

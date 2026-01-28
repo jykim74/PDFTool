@@ -38,6 +38,7 @@ private slots:
     void clickTest2();
     void clickTest3();
     void clickEncTest();
+    void clickGetRange();
 
 private:
     void initialize();

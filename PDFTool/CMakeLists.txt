@@ -19,6 +19,8 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets)
 
 set( OPENSSL "openssl35" )
 
+add_definitions( -DPDF_SIGN )
+
 set(PROJECT_SOURCES
         main.cpp
         mainwindow.cpp
