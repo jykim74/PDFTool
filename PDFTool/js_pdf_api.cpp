@@ -1859,3 +1859,65 @@ int pdf_decrypt_c( const char* in_pdf, const char *password, const char* out_pdf
     qpdf_cleanup(&qpdf);
     return 0;
 }
+
+unsigned char* load_file(const char* path, size_t* size)
+{
+    FILE* f = fopen(path, "rb");
+    if (!f) return NULL;
+
+    fseek(f, 0, SEEK_END);
+    *size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    unsigned char* buf = (unsigned char *)malloc(*size);
+    fread(buf, 1, *size, f);
+    fclose(f);
+
+    return buf;
+}
+
+/*
+qpdf_oh create_der_stream(qpdf_data qpdf,
+                          const unsigned char* der,
+                          size_t der_len)
+{
+    qpdf_oh stream = qpdf_oh_new_stream(qpdf);
+
+
+    qpdf_oh_set_stream_data(
+        stream,
+        (unsigned char*)der,
+        der_len,
+        QPDF_DATA_PRESERVE
+        );
+
+    return stream;
+}
+
+void add_dss(qpdf_data qpdf)
+{
+    size_t cert_len, ocsp_len;
+
+    unsigned char* cert_der = load_file("signer.cer", &cert_len);
+    unsigned char* ocsp_der = load_file("ocsp.der", &ocsp_len);
+
+    qpdf_oh cert_stream = create_der_stream(qpdf, cert_der, cert_len);
+    qpdf_oh ocsp_stream = create_der_stream(qpdf, ocsp_der, ocsp_len);
+
+    qpdf_oh cert_array = qpdf_oh_new_array(qpdf);
+    qpdf_oh_array_append(cert_array, cert_stream);
+
+    qpdf_oh ocsp_array = qpdf_oh_new_array(qpdf);
+    qpdf_oh_array_append(ocsp_array, ocsp_stream);
+
+    qpdf_oh dss = qpdf_oh_new_dictionary(qpdf);
+    qpdf_oh_dict_put(dss, "/Certs", cert_array);
+    qpdf_oh_dict_put(dss, "/OCSPs", ocsp_array);
+
+    qpdf_oh catalog = qpdf_get_root(qpdf);
+    qpdf_oh_dict_put(catalog, "/DSS", dss);
+
+    free(cert_der);
+    free(ocsp_der);
+}
+*/
