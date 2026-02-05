@@ -10,6 +10,8 @@
 #include "common.h"
 #include "js_bin.h"
 #include "js_pdf.h"
+#include "js_pkcs7.h"
+#include "js_cms.h"
 
 const QString kSrcPath = "SrcPath";
 const QString kCertPath = "CertPath";
@@ -34,6 +36,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mTest3Btn, SIGNAL(clicked()), this, SLOT(clickTest3()));
     connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
     connect( mGetRangeBtn, SIGNAL(clicked()), this, SLOT(clickGetRange()));
+    connect( mTestCMSBtn, SIGNAL(clicked()), this, SLOT(clickTestCMS()));
 
     initialize();
 
@@ -513,4 +516,23 @@ void MainWindow::clickGetRange()
             .arg( sRange2.nSecondLen ));
 
     JS_BIN_reset( &binSrc );
+}
+
+void MainWindow::clickTestCMS()
+{
+    int ret = 0;
+    BIN binCMS = {0,0};
+
+    QString strSrcPath = mSrcPathText->text();
+
+    JS_BIN_fileReadBER( strSrcPath.toLocal8Bit().toStdString().c_str(), &binCMS );
+    log( QString( "CMS Length: %1").arg( binCMS.nLen ));
+
+    ret = JS_CMS_getType( &binCMS );
+    log( QString( "CMS Type: %1" ).arg( ret ));
+
+    ret = JS_PKCS7_getType( &binCMS );
+    log( QString( "PKCS7 Type: %1" ).arg( ret ));
+
+    JS_BIN_reset( &binCMS );
 }
