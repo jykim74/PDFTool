@@ -512,16 +512,7 @@ qpdf_oh create_der_stream(qpdf_data qpdf,
                           const unsigned char* der,
                           size_t der_len)
 {
-    qpdf_oh stream = qpdf_oh_new_stream(qpdf);
-
-#if 0
-    qpdf_oh_set_stream_data(
-        stream,
-        (unsigned char*)der,
-        der_len,
-        QPDF_DATA_PRESERVE
-        );
-#endif
+    qpdf_oh stream = qpdf_oh_new_binary_string( qpdf, (const char *)der, der_len );
 
     return stream;
 }
