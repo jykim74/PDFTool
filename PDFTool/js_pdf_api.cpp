@@ -492,6 +492,48 @@ void add_signature_field_c2(const char* in_pdf, BIN *pOut )
     qpdf_cleanup(&qpdf);
 }
 
+void add_ltv_dss( const char* in_pdf, const char* out_pdf )
+{
+    qpdf_data qpdf = qpdf_init();
+    qpdf_read(qpdf, in_pdf, NULL);
+
+    char sUTCTime[64];
+
+    memset( sUTCTime, 0x00, sizeof(sUTCTime));
+
+
+    /* ===============================
+       1. AcroForm 확보
+       =============================== */
+
+    /*
+    QPDFObjectHandle root = pdf.getRoot();
+    size_t cert_len, ocsp_len;
+
+    unsigned char* cert_der = load_file("signer.cer", &cert_len);
+    unsigned char* ocsp_der = load_file("ocsp.der", &ocsp_len);
+
+    qpdf_oh cert_stream = create_der_stream(qpdf, cert_der, cert_len);
+    qpdf_oh ocsp_stream = create_der_stream(qpdf, ocsp_der, ocsp_len);
+
+    qpdf_oh cert_array = qpdf_oh_new_array(qpdf);
+    qpdf_oh_array_append(cert_array, cert_stream);
+
+    qpdf_oh ocsp_array = qpdf_oh_new_array(qpdf);
+    qpdf_oh_array_append(ocsp_array, ocsp_stream);
+
+    qpdf_oh dss = qpdf_oh_new_dictionary(qpdf);
+    qpdf_oh_dict_put(dss, "/Certs", cert_array);
+    qpdf_oh_dict_put(dss, "/OCSPs", ocsp_array);
+
+    qpdf_oh catalog = qpdf_get_root(qpdf);
+    qpdf_oh_dict_put(catalog, "/DSS", dss);
+
+    free(cert_der);
+    free(ocsp_der);
+    */
+}
+
 int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info)
 {
     FILE* fp = fopen(pdf_path, "rb");

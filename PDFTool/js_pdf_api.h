@@ -30,6 +30,8 @@ void add_signature_field(const char* in_pdf, const char* out_pdf);
 void add_signature_field_c(const char* in_pdf, const char* out_pdf);
 void add_signature_field_c2(const char* in_pdf, BIN *pOut );
 
+void add_ltv_dss( const char* in_pdf, const char* out_pdf );
+
 int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info);
 int calculate_byte_range2( const BIN *pPDF, ByteRangeInfo* info);
 

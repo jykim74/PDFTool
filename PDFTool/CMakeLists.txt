@@ -84,7 +84,7 @@ elseif(APPLE)
     target_link_libraries(${PROJECT_NAME} PRIVATE
         Qt${QT_VERSION_MAJOR}::Gui
         Qt${QT_VERSION_MAJOR}::Widgets
-        PKILib crypto ssl qpdf
+        PKILib crypto ssl ltdl qpdf
         "-framework AppKit"
         "-framework Carbon"
         "-framework Foundation"
