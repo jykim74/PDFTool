@@ -542,8 +542,6 @@ void add_ltv_dss( const char* in_pdf, const char* out_pdf )
        1. AcroForm 확보
        =============================== */
 
-    /*
-
     size_t cert_len, ocsp_len;
 
     unsigned char* cert_der = load_file("signer.cer", &cert_len);
@@ -553,21 +551,19 @@ void add_ltv_dss( const char* in_pdf, const char* out_pdf )
     qpdf_oh ocsp_stream = create_der_stream(qpdf, ocsp_der, ocsp_len);
 
     qpdf_oh cert_array = qpdf_oh_new_array(qpdf);
-    qpdf_oh_array_append(cert_array, cert_stream);
+    qpdf_oh_append_item( qpdf, cert_array,cert_stream );
 
     qpdf_oh ocsp_array = qpdf_oh_new_array(qpdf);
-    qpdf_oh_array_append(ocsp_array, ocsp_stream);
+    qpdf_oh_append_item( qpdf, ocsp_array, ocsp_stream );
 
     qpdf_oh dss = qpdf_oh_new_dictionary(qpdf);
-    qpdf_oh_dict_put(dss, "/Certs", cert_array);
-    qpdf_oh_dict_put(dss, "/OCSPs", ocsp_array);
+    qpdf_oh_replace_key(qpdf, dss, "/Certs", cert_array);
+    qpdf_oh_replace_key(qpdf, dss, "/OCSPs", ocsp_array);
 
-    qpdf_oh catalog = qpdf_get_root(qpdf);
-    qpdf_oh_dict_put(catalog, "/DSS", dss);
+    qpdf_oh_replace_key(qpdf, root, "/DSS", dss);
 
     free(cert_der);
     free(ocsp_der);
-    */
 }
 
 int calculate_byte_range( const char* pdf_path, ByteRangeInfo* info)
