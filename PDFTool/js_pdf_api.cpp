@@ -1924,3 +1924,14 @@ int pdf_decrypt_c( const char* in_pdf, const char *password, const char* out_pdf
     qpdf_cleanup(&qpdf);
     return 0;
 }
+
+void compute_vri_hash(unsigned char* cms_der,
+                      size_t cms_len,
+                      char* out_hex)
+{
+    unsigned char hash[SHA256_DIGEST_LENGTH];
+    SHA256(cms_der, cms_len, hash);
+
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
+        sprintf(out_hex + i*2, "%02X", hash[i]);
+}

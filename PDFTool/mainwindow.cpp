@@ -37,6 +37,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mEncTestBtn, SIGNAL(clicked()), this, SLOT(clickEncTest()));
     connect( mGetRangeBtn, SIGNAL(clicked()), this, SLOT(clickGetRange()));
     connect( mTestCMSBtn, SIGNAL(clicked()), this, SLOT(clickTestCMS()));
+    connect( mDSSTestBtn, SIGNAL(clicked()), this, SLOT(clickDSSTest()));
 
     initialize();
 
@@ -535,4 +536,60 @@ void MainWindow::clickTestCMS()
     log( QString( "PKCS7 Type: %1" ).arg( ret ));
 
     JS_BIN_reset( &binCMS );
+}
+
+void MainWindow::clickDSSTest()
+{
+    int ret = 0;
+    BIN binPDF = {0,0};
+    BIN binCert = {0,0};
+
+    QString strSrcPath = mSrcPathText->text();
+    QString strDstPath = mDstPathText->text();
+
+    if( strSrcPath.length() < 1 )
+    {
+        manApplet->warningBox( "Enter src path", this);
+        return;
+    }
+
+    if( strDstPath.length() < 1 )
+    {
+        strDstPath = strSrcPath + "dss";
+        mDstPathText->setText( strDstPath );
+    }
+
+    JS_BIN_fileRead( strSrcPath.toLocal8Bit().toStdString().c_str(), &binPDF );
+
+    JS_BIN_setChar( &binCert, 0xAA, 16 );
+#if 1
+    ret = JS_PDF_addDSS( strSrcPath.toLocal8Bit().toStdString().c_str(),
+                        NULL,
+                        "11223344",
+                        &binCert,
+                        &binCert,
+                        &binCert,
+                        strDstPath.toLocal8Bit().toStdString().c_str() );
+#else
+    ret = JS_PDF_add_dss(
+        strSrcPath.toLocal8Bit().toStdString().c_str(),
+        strDstPath.toLocal8Bit().toStdString().c_str(),
+        binCert.pVal,
+        binCert.nLen,
+        binCert.pVal,
+        binCert.nLen );
+#endif
+
+    if( ret >= 0 )
+    {
+        manApplet->messageBox( "OK", this );
+    }
+    else
+    {
+        manApplet->warningBox( QString( "Fail: %1").arg(ret), this );
+    }
+
+
+    JS_BIN_reset( &binPDF );
+    JS_BIN_reset( &binCert );
 }
