@@ -543,6 +543,9 @@ void MainWindow::clickDSSTest()
     int ret = 0;
     BIN binPDF = {0,0};
     BIN binCert = {0,0};
+    BIN binOCSP = {0,0};
+    BIN binCRL = {0,0};
+    const char *pHashVal = "/11223344";
 
     QString strSrcPath = mSrcPathText->text();
     QString strDstPath = mDstPathText->text();
@@ -565,7 +568,7 @@ void MainWindow::clickDSSTest()
 #if 1
     ret = JS_PDF_addDSS( strSrcPath.toLocal8Bit().toStdString().c_str(),
                         NULL,
-                        "11223344",
+                        pHashVal,
                         &binCert,
                         &binCert,
                         &binCert,
@@ -589,7 +592,21 @@ void MainWindow::clickDSSTest()
         manApplet->warningBox( QString( "Fail: %1").arg(ret), this );
     }
 
+    JS_BIN_reset( &binOCSP );
+    JS_BIN_reset( &binCert );
+    JS_BIN_reset( &binCRL );
+
+    ret = JS_PDF_getDSS(
+        strDstPath.toLocal8Bit().toStdString().c_str(),
+        NULL,
+        pHashVal,
+        &binOCSP,
+        &binCRL,
+        &binCert );
+
 
     JS_BIN_reset( &binPDF );
     JS_BIN_reset( &binCert );
+    JS_BIN_reset( &binOCSP );
+    JS_BIN_reset( &binCRL );
 }
