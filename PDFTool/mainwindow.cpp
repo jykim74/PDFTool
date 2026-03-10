@@ -566,6 +566,7 @@ void MainWindow::clickDSSTest()
 
     JS_BIN_setChar( &binCert, 0xAA, 16 );
 #if 1
+    /*
     ret = JS_PDF_addDSS( strSrcPath.toLocal8Bit().toStdString().c_str(),
                         NULL,
                         pHashVal,
@@ -573,6 +574,14 @@ void MainWindow::clickDSSTest()
                         &binCert,
                         &binCert,
                         strDstPath.toLocal8Bit().toStdString().c_str() );
+    */
+    ret = JS_PDF_addDSS2( strSrcPath.toLocal8Bit().toStdString().c_str(),
+                        NULL,
+                        pHashVal,
+                        &binCert,
+                        &binCert,
+                        &binCert );
+
 #else
     ret = JS_PDF_add_dss(
         strSrcPath.toLocal8Bit().toStdString().c_str(),
