@@ -38,6 +38,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect( mGetRangeBtn, SIGNAL(clicked()), this, SLOT(clickGetRange()));
     connect( mTestCMSBtn, SIGNAL(clicked()), this, SLOT(clickTestCMS()));
     connect( mDSSTestBtn, SIGNAL(clicked()), this, SLOT(clickDSSTest()));
+    connect( mAppendDSSBtn, SIGNAL(clicked()), this, SLOT(clickAppendDSS()));
 
     initialize();
 
@@ -591,6 +592,67 @@ void MainWindow::clickDSSTest()
         binCert.pVal,
         binCert.nLen );
 #endif
+
+    if( ret >= 0 )
+    {
+        manApplet->messageBox( "OK", this );
+    }
+    else
+    {
+        manApplet->warningBox( QString( "Fail: %1").arg(ret), this );
+    }
+
+    JS_BIN_reset( &binOCSP );
+    JS_BIN_reset( &binCert );
+    JS_BIN_reset( &binCRL );
+
+    ret = JS_PDF_getDSS(
+        strDstPath.toLocal8Bit().toStdString().c_str(),
+        NULL,
+        pHashVal,
+        &binOCSP,
+        &binCRL,
+        &binCert );
+
+
+    JS_BIN_reset( &binPDF );
+    JS_BIN_reset( &binCert );
+    JS_BIN_reset( &binOCSP );
+    JS_BIN_reset( &binCRL );
+}
+
+void MainWindow::clickAppendDSS()
+{
+    int ret = 0;
+    BIN binPDF = {0,0};
+    BIN binCert = {0,0};
+    BIN binOCSP = {0,0};
+    BIN binCRL = {0,0};
+    const char *pHashVal = "/11223344";
+
+    QString strSrcPath = mSrcPathText->text();
+    QString strDstPath = mDstPathText->text();
+
+    if( strSrcPath.length() < 1 )
+    {
+        manApplet->warningBox( "Enter src path", this);
+        return;
+    }
+
+    if( strDstPath.length() < 1 )
+    {
+        strDstPath = strSrcPath + "dss";
+        mDstPathText->setText( strDstPath );
+    }
+
+    JS_BIN_fileRead( strSrcPath.toLocal8Bit().toStdString().c_str(), &binPDF );
+
+    JS_BIN_setChar( &binCert, 0xAA, 16 );
+
+    ret = append_dss( strSrcPath.toLocal8Bit().toStdString().c_str(),
+                     strDstPath.toLocal8Bit().toStdString().c_str(),
+                     binCert.pVal,
+                     binCert.nLen );
 
     if( ret >= 0 )
     {

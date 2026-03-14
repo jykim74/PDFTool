@@ -41,6 +41,7 @@ private slots:
     void clickGetRange();
     void clickTestCMS();
     void clickDSSTest();
+    void clickAppendDSS();
 
 private:
     void initialize();
