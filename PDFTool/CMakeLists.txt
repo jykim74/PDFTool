@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 project(PDFTool
   VERSION 0.0.1
   DESCRIPTION "PDFTool Application"
-  LANGUAGES CXX )
+  LANGUAGES CXX C )
 
 
 set(CMAKE_CXX_STANDARD 17)
@@ -35,6 +35,7 @@ add_executable(PDFTool
     js_pdf_api.cpp
     common.h
     common.cpp
+    pdf_test.cpp
 )
 
 target_link_options( PDFTool PRIVATE -mwindows -MD )
