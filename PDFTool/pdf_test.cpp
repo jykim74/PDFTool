@@ -108,6 +108,8 @@ long copy_original(FILE *in,FILE *out)
     return total;
 }
 
+
+
 /* -------------------------------------------------- */
 /* write certificate stream */
 /* -------------------------------------------------- */
@@ -237,6 +239,114 @@ int append_dss(const char *input,
 
     return 0;
 }
+
+long write_new_root(FILE *f,
+                    int obj,
+                    const char *old_root_dict,
+                    int dss_obj)
+{
+    long off = ftell(f);
+
+    fprintf(f,"%d 0 obj\n",obj);
+
+    /* 기존 dictionary 복사 */
+    fprintf(f,"%s\n",old_root_dict);
+
+    /* DSS 추가 */
+    fprintf(f,"/DSS %d 0 R\n",dss_obj);
+
+    fprintf(f,">>\nendobj\n");
+
+    return off;
+}
+
+long write_xref_incremental(FILE *f,
+                            int start_obj,
+                            int count,
+                            long *offsets)
+{
+    long pos = ftell(f);
+
+    fprintf(f,"xref\n");
+    fprintf(f,"%d %d\n",start_obj,count);
+
+    for(int i=0;i<count;i++)
+        fprintf(f,"%010ld 00000 n \n",offsets[i]);
+
+    return pos;
+}
+
+
+void write_trailer2(FILE *f,
+                   int new_size,
+                   int root_obj,
+                   long prev,
+                   long xref_pos)
+{
+    fprintf(f,"trailer\n<<\n");
+
+    fprintf(f,"/Size %d\n",new_size);
+    fprintf(f,"/Root %d 0 R\n",root_obj);
+    fprintf(f,"/Prev %ld\n",prev);
+
+    fprintf(f,">>\n");
+
+    fprintf(f,"startxref\n%ld\n%%%%EOF\n",xref_pos);
+}
+
+long write_cert_streams(FILE *f,
+                        int start_obj,
+                        unsigned char **certs,
+                        int *lens,
+                        int cert_count,
+                        long *offsets)
+{
+    for(int i=0;i<cert_count;i++)
+    {
+        int obj = start_obj + i;
+
+        offsets[i] = ftell(f);
+
+        fprintf(f,"%d 0 obj\n",obj);
+        fprintf(f,"<< /Length %d >>\n",lens[i]);
+        fprintf(f,"stream\n");
+
+        fwrite(certs[i],1,lens[i],f);
+
+        fprintf(f,"\nendstream\nendobj\n");
+    }
+
+    return 0;
+}
+
+long write_dss_multi_cert(FILE *f,
+                          int obj,
+                          int cert_start_obj,
+                          int cert_count)
+{
+    long offset = ftell(f);
+
+    fprintf(f,"%d 0 obj\n",obj);
+    fprintf(f,"<<\n");
+    fprintf(f,"/Type /DSS\n");
+
+    /* Certs 배열 */
+    fprintf(f,"/Certs [");
+
+    for(int i=0;i<cert_count;i++)
+    {
+        fprintf(f,"%d 0 R",cert_start_obj + i);
+        if(i != cert_count-1)
+            fprintf(f," ");
+    }
+
+    fprintf(f,"]\n");
+
+    fprintf(f,">>\nendobj\n");
+
+    return offset;
+}
+
 
 /* -------------------------------------------------- */
 /* test main */
